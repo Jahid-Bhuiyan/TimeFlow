@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckSquare, Clock, Tag, Flag, Repeat, Sparkles } from 'lucide-react';
+import { X, CheckSquare, Clock, Tag, Flag, Repeat, Sparkles, Plus, Settings2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { CATEGORIES, CATEGORY_LIST } from '../../utils/categories';
 import { ActivityCategory, RoutineSlot, TaskPriority } from '../../types';
 
 export const TaskModal: React.FC = () => {
@@ -11,7 +10,9 @@ export const TaskModal: React.FC = () => {
     editingTask, 
     addTask, 
     updateTask, 
-    selectedDate 
+    selectedDate,
+    categoryList,
+    openCategoryModal
   } = useApp();
 
   const [title, setTitle] = useState('');
@@ -138,22 +139,41 @@ export const TaskModal: React.FC = () => {
 
           {/* Category Chips */}
           <div>
-            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-              Activity Category
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-              {CATEGORY_LIST.map((cat) => {
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                Activity Category
+              </label>
+              <button
+                type="button"
+                onClick={() => openCategoryModal()}
+                className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Add / Manage Categories</span>
+              </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-40 overflow-y-auto pr-1">
+              {categoryList.map((cat) => {
                 const isSelected = category === cat.id;
                 return (
                   <button
                     key={cat.id}
                     type="button"
                     onClick={() => setCategory(cat.id)}
-                    className={`flex items-center gap-2 p-2 rounded-xl text-xs font-medium border text-left transition-all ${
+                    className={`flex items-center gap-2 p-2 rounded-xl text-xs font-medium border text-left transition-all cursor-pointer ${
                       isSelected
-                        ? `${cat.bgLight} ${cat.borderColor} ${cat.textColor} ring-1 ring-offset-0 ring-current font-bold`
+                        ? 'ring-1 ring-offset-0 font-bold'
                         : 'bg-zinc-50 dark:bg-zinc-800/60 border-zinc-200/60 dark:border-zinc-700/60 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100'
                     }`}
+                    style={
+                      isSelected
+                        ? {
+                            backgroundColor: `${cat.color}15`,
+                            borderColor: `${cat.color}60`,
+                            color: cat.color
+                          }
+                        : undefined
+                    }
                   >
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
                     <span className="truncate">{cat.name}</span>

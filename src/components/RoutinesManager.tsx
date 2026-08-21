@@ -11,24 +11,37 @@ import {
   Clock, 
   Flame, 
   Award,
-  Zap
+  Zap,
+  X,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { CATEGORIES } from '../utils/categories';
-import { ActivityCategory, RoutineSlot } from '../types';
+import { ActivityCategory, RoutineSlot, Task } from '../types';
 
 export const RoutinesManager: React.FC = () => {
-  const { tasks, addTask, startTimer, openTaskModal, selectedDate } = useApp();
+  const { 
+    tasks, 
+    addTask, 
+    startTimer, 
+    openTaskModal, 
+    selectedDate, 
+    toggleTaskComplete, 
+    deleteTask,
+    getCategory,
+    categoryList
+  } = useApp();
 
   const [routineTitle, setRoutineTitle] = useState('');
   const [slot, setSlot] = useState<RoutineSlot>('morning');
   const [category, setCategory] = useState<ActivityCategory>('fitness');
   const [duration, setDuration] = useState<number>(15);
+  const [selectedRoutine, setSelectedRoutine] = useState<Task | null>(null);
 
   const routineSlots = [
-    { id: 'morning', label: 'Morning Kickoff', icon: Sun, color: 'text-amber-500', desc: 'Build initial momentum' },
-    { id: 'afternoon', label: 'Afternoon Flow', icon: Sunset, color: 'text-orange-500', desc: 'Peak cognitive stamina' },
-    { id: 'evening', label: 'Evening Shutdown', icon: Moon, color: 'text-indigo-500', desc: 'Reflect and disconnect' }
+    { id: 'morning', label: 'Morning Kickoff', icon: Sun, color: 'text-amber-500' },
+    { id: 'afternoon', label: 'Afternoon Flow', icon: Sunset, color: 'text-orange-500' },
+    { id: 'evening', label: 'Evening Shutdown', icon: Moon, color: 'text-indigo-500' }
   ] as const;
 
   const currentRoutineTasks = tasks.filter(t => t.isRecurringRoutine);
@@ -64,9 +77,6 @@ export const RoutinesManager: React.FC = () => {
             Daily Routine Rituals & Habit Stacking
           </h1>
         </div>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-          Lock in morning prime-time habits, mid-day recovery, and evening reviews to safeguard willpower and prevent burnout.
-        </p>
       </div>
 
       {/* Routine Slots Grid */}
@@ -79,7 +89,7 @@ export const RoutinesManager: React.FC = () => {
           return (
             <div key={rSlot.id} className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 p-4 shadow-2xs flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-zinc-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
                     <Icon className={`w-4 h-4 ${rSlot.color}`} />
                     <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{rSlot.label}</h3>
@@ -88,7 +98,6 @@ export const RoutinesManager: React.FC = () => {
                     {completedCount}/{slotTasks.length}
                   </span>
                 </div>
-                <p className="text-[11px] text-zinc-400 mt-1 mb-3">{rSlot.desc}</p>
 
                 {/* Items in Slot */}
                 <div className="space-y-2">
@@ -98,12 +107,13 @@ export const RoutinesManager: React.FC = () => {
                     </div>
                   ) : (
                     slotTasks.map((t) => {
-                      const cat = CATEGORIES[t.category] || CATEGORIES.work;
+                      const cat = getCategory(t.category);
                       const isDone = t.status === 'completed';
                       return (
                         <div
                           key={t.id}
-                          className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 text-xs transition-colors ${
+                          onClick={() => setSelectedRoutine(t)}
+                          className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 text-xs transition-all cursor-pointer hover:border-purple-300 dark:hover:border-purple-800 hover:shadow-xs ${
                             isDone 
                               ? 'bg-zinc-50 dark:bg-zinc-800/30 border-zinc-200/40 text-zinc-400' 
                               : 'bg-zinc-50/50 dark:bg-zinc-800/60 border-zinc-200/70 text-zinc-800 dark:text-zinc-200'
@@ -115,8 +125,8 @@ export const RoutinesManager: React.FC = () => {
                               {t.title}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="text-[10px] font-mono text-zinc-400">{t.targetMinutes || 15}m</span>
+                          <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <span className="text-[10px] font-mono text-zinc-400">{t.loggedMinutes || 0}m / {t.targetMinutes || 15} target</span>
                             {!isDone && (
                               <button
                                 onClick={() => startTimer({
@@ -160,7 +170,7 @@ export const RoutinesManager: React.FC = () => {
                     updatedAt: ''
                   });
                 }}
-                className="mt-3 w-full py-1.5 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1"
+                className="mt-3 w-full py-1.5 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1 cursor-pointer"
               >
                 <Plus className="w-3 h-3" />
                 <span>Add to {rSlot.label}</span>
@@ -185,6 +195,19 @@ export const RoutinesManager: React.FC = () => {
             placeholder="E.g., 10 min Box Breathing & Sunlight, Inbox Triaging, Daily Reading..."
             className="flex-1 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
           />
+
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value as ActivityCategory)}
+            aria-label="Select routine category"
+            className="text-xs px-3 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200"
+          >
+            {categoryList.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
 
           <select
             value={slot}
@@ -220,6 +243,138 @@ export const RoutinesManager: React.FC = () => {
           </button>
         </form>
       </div>
+
+      {/* Routine Detail Card Modal */}
+      {selectedRoutine && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div 
+            className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-6 relative animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedRoutine(null)}
+              className="absolute top-4 right-4 p-2 rounded-full text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Header Badge */}
+            <div className="flex items-center gap-2 mb-4">
+              <span className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
+                {selectedRoutine.routineTimeSlot ? `${selectedRoutine.routineTimeSlot} Routine` : 'Daily Ritual'}
+              </span>
+              <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${
+                selectedRoutine.status === 'completed' 
+                  ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400' 
+                  : 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400'
+              }`}>
+                {selectedRoutine.status === 'completed' ? 'Completed Today' : 'Pending'}
+              </span>
+            </div>
+
+            {/* Title */}
+            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50 mb-2">
+              {selectedRoutine.title}
+            </h3>
+
+            {/* Description if any */}
+            {selectedRoutine.description ? (
+              <p className="text-xs text-zinc-600 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800 mb-4 leading-relaxed">
+                {selectedRoutine.description}
+              </p>
+            ) : (
+              <p className="text-xs text-zinc-400 italic mb-4">
+                No extra notes provided for this routine habit.
+              </p>
+            )}
+
+            {/* Info Badges */}
+            <div className="grid grid-cols-2 gap-2 mb-6">
+              <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/60 dark:border-zinc-700/60">
+                <span className="text-[10px] text-zinc-400 font-medium block">Category</span>
+                <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 capitalize">
+                  {getCategory(selectedRoutine.category).name}
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/60 dark:border-zinc-700/60">
+                <span className="text-[10px] text-zinc-400 font-medium block">Target Time</span>
+                <span className="text-xs font-semibold font-mono text-zinc-800 dark:text-zinc-200">
+                  {selectedRoutine.loggedMinutes || 0}m / {selectedRoutine.targetMinutes || 15} target
+                </span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    const r = selectedRoutine;
+                    setSelectedRoutine(null);
+                    openTaskModal(r);
+                  }}
+                  className="p-2 rounded-xl text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  title="Edit Ritual"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    deleteTask(selectedRoutine.id);
+                    setSelectedRoutine(null);
+                  }}
+                  className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
+                  title="Delete Ritual"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    toggleTaskComplete(selectedRoutine.id);
+                    setSelectedRoutine({
+                      ...selectedRoutine,
+                      status: selectedRoutine.status === 'completed' ? 'pending' : 'completed'
+                    });
+                  }}
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                    selectedRoutine.status === 'completed'
+                      ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  }`}
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{selectedRoutine.status === 'completed' ? 'Mark Incomplete' : 'Complete'}</span>
+                </button>
+
+                {selectedRoutine.status !== 'completed' && (
+                  <button
+                    onClick={() => {
+                      const r = selectedRoutine;
+                      setSelectedRoutine(null);
+                      startTimer({
+                        taskId: r.id,
+                        taskTitle: r.title,
+                        category: r.category,
+                        mode: 'pomodoro',
+                        targetSeconds: (r.targetMinutes || 15) * 60
+                      });
+                    }}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Focus Now</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -1,23 +1,17 @@
-export type ActivityCategory = 
-  | 'work' 
-  | 'study' 
-  | 'fitness' 
-  | 'personal' 
-  | 'chores' 
-  | 'entertainment' 
-  | 'time_waste';
+export type ActivityCategory = string;
 
 export interface CategoryInfo {
-  id: ActivityCategory;
+  id: string;
   name: string;
   isProductive: boolean;
   color: string;
-  textColor: string;
-  bgLight: string;
-  bgDark: string;
-  borderColor: string;
-  icon: string;
-  description: string;
+  textColor?: string;
+  bgLight?: string;
+  bgDark?: string;
+  borderColor?: string;
+  icon?: string;
+  description?: string;
+  isCustom?: boolean;
 }
 
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';

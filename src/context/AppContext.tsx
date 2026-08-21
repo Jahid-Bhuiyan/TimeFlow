@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { ActiveTimer, ActivityCategory, Task, TimeLog, User } from '../types';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { ActiveTimer, ActivityCategory, CategoryInfo, Task, TimeLog, User } from '../types';
 import { generateInitialData, getTodayDateString, INITIAL_USER } from '../utils/mockData';
 import { sounds } from '../utils/audio';
 import { triggerGoalReachedConfetti, triggerTaskConfetti } from '../utils/confetti';
-import { CATEGORIES } from '../utils/categories';
+import { DEFAULT_CATEGORIES, getCategoryInfo } from '../utils/categories';
 
 interface AppContextType {
   user: User | null;
@@ -14,6 +14,19 @@ interface AppContextType {
   activeNavTab: 'today' | 'analytics' | 'history' | 'routines' | 'profile';
   theme: 'light' | 'dark';
   soundEnabled: boolean;
+  
+  // Categories State
+  categories: Record<string, CategoryInfo>;
+  categoryList: CategoryInfo[];
+  isCategoryModalOpen: boolean;
+  editingCategory: CategoryInfo | null;
+  openCategoryModal: (category?: CategoryInfo | null) => void;
+  closeCategoryModal: () => void;
+  addCategory: (category: { name: string; isProductive: boolean; color: string; description?: string }) => CategoryInfo;
+  updateCategory: (id: string, updates: Partial<CategoryInfo>) => void;
+  deleteCategory: (id: string) => void;
+  resetCategoriesToDefault: () => void;
+  getCategory: (id: string) => CategoryInfo;
   
   // Modals & UI state
   isAuthModalOpen: boolean;
@@ -72,7 +85,8 @@ const STORAGE_KEYS = {
   LOGS: 'timeflow_logs_v1',
   TIMER: 'timeflow_timer_v1',
   THEME: 'timeflow_theme_v1',
-  SOUND: 'timeflow_sound_v1'
+  SOUND: 'timeflow_sound_v1',
+  CATEGORIES: 'timeflow_categories_v1'
 };
 
 const defaultTimerState: ActiveTimer = {
@@ -89,6 +103,21 @@ const defaultTimerState: ActiveTimer = {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Categories State
+  const [categories, setCategories] = useState<Record<string, CategoryInfo>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // fallback
+    }
+    return DEFAULT_CATEGORIES;
+  });
+
+  const categoryList = useMemo(() => Object.values(categories), [categories]);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<CategoryInfo | null>(null);
+
   // Initialize state from LocalStorage or seed data
   const [user, setUser] = useState<User | null>(() => {
     try {
@@ -210,6 +239,79 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.SOUND, soundEnabled.toString());
   }, [soundEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+  }, [categories]);
+
+  // Category Actions
+  const openCategoryModal = (category: CategoryInfo | null = null) => {
+    sounds.playClick(soundEnabled);
+    setEditingCategory(category);
+    setIsCategoryModalOpen(true);
+  };
+
+  const closeCategoryModal = () => {
+    setEditingCategory(null);
+    setIsCategoryModalOpen(false);
+  };
+
+  const addCategory = useCallback((newCat: { name: string; isProductive: boolean; color: string; description?: string }) => {
+    sounds.playClick(soundEnabled);
+    const id = newCat.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_') || `cat_${Date.now()}`;
+    const cleanId = categories[id] ? `${id}_${Date.now().toString().slice(-4)}` : id;
+    
+    const categoryInfo: CategoryInfo = {
+      id: cleanId,
+      name: newCat.name.trim(),
+      isProductive: newCat.isProductive,
+      color: newCat.color || '#3B82F6',
+      textColor: 'text-zinc-900 dark:text-zinc-100',
+      bgLight: 'bg-zinc-50 dark:bg-zinc-800/60',
+      borderColor: 'border-zinc-200 dark:border-zinc-700',
+      description: newCat.description || '',
+      isCustom: true
+    };
+
+    setCategories((prev) => ({
+      ...prev,
+      [cleanId]: categoryInfo
+    }));
+
+    return categoryInfo;
+  }, [categories, soundEnabled]);
+
+  const updateCategory = useCallback((id: string, updates: Partial<CategoryInfo>) => {
+    sounds.playClick(soundEnabled);
+    setCategories((prev) => {
+      if (!prev[id]) return prev;
+      return {
+        ...prev,
+        [id]: {
+          ...prev[id],
+          ...updates
+        }
+      };
+    });
+  }, [soundEnabled]);
+
+  const deleteCategory = useCallback((id: string) => {
+    sounds.playClick(soundEnabled);
+    setCategories((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+  }, [soundEnabled]);
+
+  const resetCategoriesToDefault = useCallback(() => {
+    sounds.playTaskComplete(soundEnabled);
+    setCategories(DEFAULT_CATEGORIES);
+  }, [soundEnabled]);
+
+  const getCategory = useCallback((id: string): CategoryInfo => {
+    return getCategoryInfo(categories, id);
+  }, [categories]);
 
   // Timer Tick Hook
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -346,8 +448,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const durationMins = Math.max(1, Math.round(prev.elapsedSeconds / 60));
       
       if (save && durationMins > 0) {
-        const catInfo = CATEGORIES[prev.category];
-        const isProd = catInfo ? catInfo.isProductive : prev.category !== 'time_waste' && prev.category !== 'entertainment';
+        const catInfo = getCategoryInfo(categories, prev.category);
+        const isProd = catInfo.isProductive;
         const now = new Date();
         const startTime = new Date(now.getTime() - prev.elapsedSeconds * 1000).toISOString();
         const endTime = now.toISOString();
@@ -388,7 +490,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         elapsedSeconds: 0
       };
     });
-  }, [soundEnabled, user?.id]);
+  }, [categories, soundEnabled, user?.id]);
 
   // Task Actions
   const addTask = useCallback((taskData: Omit<Task, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'loggedMinutes'> & { loggedMinutes?: number }): Task => {
@@ -494,8 +596,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     taskId?: string;
   }) => {
     sounds.playClick(soundEnabled);
-    const catInfo = CATEGORIES[params.category];
-    const isProd = catInfo ? catInfo.isProductive : params.category !== 'time_waste' && params.category !== 'entertainment';
+    const catInfo = getCategoryInfo(categories, params.category);
+    const isProd = catInfo.isProductive;
     const now = new Date();
     const start = new Date(now.getTime() - params.durationMinutes * 60000);
     const todayStr = getTodayDateString();
@@ -525,7 +627,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         )
       );
     }
-  }, [soundEnabled, user?.id]);
+  }, [categories, soundEnabled, user?.id]);
 
   // Auth Functions
   const login = (email: string, _pass: string): boolean => {
@@ -613,7 +715,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         exportDate: new Date().toISOString(),
         user,
         tasks,
-        timeLogs
+        timeLogs,
+        categories
       };
       const blob = new Blob([JSON.stringify(exportObject, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -656,6 +759,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (parsed.timeLogs && Array.isArray(parsed.timeLogs)) {
         setTimeLogs(parsed.timeLogs);
       }
+      if (parsed.categories && typeof parsed.categories === 'object') {
+        setCategories(parsed.categories);
+      }
       if (parsed.user) {
         setUser(parsed.user);
       }
@@ -672,6 +778,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUser(data.user);
     setTasks(data.tasks);
     setTimeLogs(data.timeLogs);
+    setCategories(DEFAULT_CATEGORIES);
     setActiveTimer(defaultTimerState);
   };
 
@@ -686,6 +793,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeNavTab,
         theme,
         soundEnabled,
+        categories,
+        categoryList,
+        isCategoryModalOpen,
+        editingCategory,
+        openCategoryModal,
+        closeCategoryModal,
+        addCategory,
+        updateCategory,
+        deleteCategory,
+        resetCategoriesToDefault,
+        getCategory,
         isAuthModalOpen,
         isTaskModalOpen,
         isLogModalOpen,

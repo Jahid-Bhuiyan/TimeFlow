@@ -1,6 +1,6 @@
-import { ActivityCategory, CategoryInfo } from '../types';
+import { CategoryInfo } from '../types';
 
-export const CATEGORIES: Record<ActivityCategory, CategoryInfo> = {
+export const DEFAULT_CATEGORIES: Record<string, CategoryInfo> = {
   work: {
     id: 'work',
     name: 'Deep Work',
@@ -87,4 +87,50 @@ export const CATEGORIES: Record<ActivityCategory, CategoryInfo> = {
   }
 };
 
-export const CATEGORY_LIST = Object.values(CATEGORIES);
+export const CATEGORIES = DEFAULT_CATEGORIES;
+export const CATEGORY_LIST = Object.values(DEFAULT_CATEGORIES);
+
+export const PRESET_CATEGORY_COLORS = [
+  { hex: '#3B82F6', label: 'Blue' },
+  { hex: '#8B5CF6', label: 'Purple' },
+  { hex: '#10B981', label: 'Emerald' },
+  { hex: '#06B6D4', label: 'Cyan' },
+  { hex: '#F59E0B', label: 'Amber' },
+  { hex: '#EC4899', label: 'Pink' },
+  { hex: '#EF4444', label: 'Crimson' },
+  { hex: '#6366F1', label: 'Indigo' },
+  { hex: '#14B8A6', label: 'Teal' },
+  { hex: '#84CC16', label: 'Lime' },
+  { hex: '#F97316', label: 'Orange' },
+  { hex: '#64748B', label: 'Slate' }
+];
+
+export function getCategoryInfo(
+  categoriesMap: Record<string, CategoryInfo> | undefined,
+  categoryId: string
+): CategoryInfo {
+  if (categoriesMap && categoriesMap[categoryId]) {
+    return categoriesMap[categoryId];
+  }
+  if (DEFAULT_CATEGORIES[categoryId]) {
+    return DEFAULT_CATEGORIES[categoryId];
+  }
+  // Dynamic fallback for custom or unmapped category ID
+  const cleanName = categoryId
+    .split(/[-_]/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+
+  return {
+    id: categoryId,
+    name: cleanName || 'Custom Activity',
+    isProductive: true,
+    color: '#6366F1',
+    textColor: 'text-indigo-600 dark:text-indigo-400',
+    bgLight: 'bg-indigo-50 dark:bg-indigo-950/40',
+    bgDark: 'bg-indigo-900/30',
+    borderColor: 'border-indigo-200 dark:border-indigo-800/50',
+    icon: 'Activity',
+    description: 'Custom activity category'
+  };
+}

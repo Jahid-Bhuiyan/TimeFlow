@@ -1,10 +1,11 @@
-import { ActivityCategory, MonthlyInsight, Task, TimeLog } from '../types';
-import { CATEGORIES, CATEGORY_LIST } from './categories';
+import { ActivityCategory, CategoryInfo, MonthlyInsight, Task, TimeLog } from '../types';
+import { DEFAULT_CATEGORIES, getCategoryInfo } from './categories';
 
 export const calculateMonthlyInsight = (
   tasks: Task[],
   timeLogs: TimeLog[],
-  selectedMonthKey?: string // e.g. '2026-08'
+  selectedMonthKey?: string, // e.g. '2026-08'
+  categoriesMap?: Record<string, CategoryInfo>
 ): MonthlyInsight => {
   const currentMonthKey = selectedMonthKey || new Date().toISOString().slice(0, 7);
   const [yearStr, monthStr] = currentMonthKey.split('-');
@@ -14,6 +15,8 @@ export const calculateMonthlyInsight = (
   const dateObj = new Date(year, month - 1, 1);
   const monthName = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
 
+  const activeCategories = categoriesMap || DEFAULT_CATEGORIES;
+
   // Filter logs belonging to the month
   const monthLogs = timeLogs.filter((log) => log.date.startsWith(currentMonthKey));
 
@@ -21,15 +24,7 @@ export const calculateMonthlyInsight = (
   let totalWasteMinutes = 0;
   let totalTrackedMinutes = 0;
 
-  const categoryMinutesMap: Record<ActivityCategory, number> = {
-    work: 0,
-    study: 0,
-    fitness: 0,
-    personal: 0,
-    chores: 0,
-    entertainment: 0,
-    time_waste: 0
-  };
+  const categoryMinutesMap: Record<string, number> = {};
 
   const activityDurationMap: Record<string, { title: string; category: ActivityCategory; minutes: number }> = {};
   const wasteActivityMap: Record<string, { title: string; minutes: number }> = {};
@@ -39,12 +34,10 @@ export const calculateMonthlyInsight = (
     const mins = log.durationMinutes || 0;
     totalTrackedMinutes += mins;
 
-    if (categoryMinutesMap[log.category] !== undefined) {
-      categoryMinutesMap[log.category] += mins;
-    }
+    categoryMinutesMap[log.category] = (categoryMinutesMap[log.category] || 0) + mins;
 
-    const catDef = CATEGORIES[log.category];
-    if (log.category === 'time_waste') {
+    const catDef = getCategoryInfo(activeCategories, log.category);
+    if (log.category === 'time_waste' || (!catDef.isProductive && catDef.id === 'time_waste')) {
       totalWasteMinutes += mins;
       const key = log.taskTitle.trim();
       wasteActivityMap[key] = wasteActivityMap[key] || { title: key, minutes: 0 };
@@ -62,7 +55,7 @@ export const calculateMonthlyInsight = (
     }
     if (catDef && catDef.isProductive) {
       dateMinutesMap[log.date].productive += mins;
-    } else if (log.category === 'time_waste') {
+    } else if (log.category === 'time_waste' || (!catDef.isProductive && catDef.id === 'time_waste')) {
       dateMinutesMap[log.date].waste += mins;
     } else {
       dateMinutesMap[log.date].other += mins;
@@ -121,7 +114,6 @@ export const calculateMonthlyInsight = (
     }));
 
   // Neglected Important Tasks
-  // Tasks that are pending with priority high or urgent, and were created >= 2 days ago
   const now = new Date();
   const neglectedImportantTasks = tasks
     .filter((task) => {
@@ -145,7 +137,8 @@ export const calculateMonthlyInsight = (
     .sort((a, b) => (b.priority === 'urgent' ? 1 : 0) - (a.priority === 'urgent' ? 1 : 0) || b.daysPending - a.daysPending);
 
   // Category Breakdown for Charts
-  const categoryBreakdown = CATEGORY_LIST.map((cat) => {
+  const allCategoryEntries = Object.values(activeCategories);
+  const categoryBreakdown = allCategoryEntries.map((cat) => {
     const mins = categoryMinutesMap[cat.id] || 0;
     const hours = Number((mins / 60).toFixed(1));
     const percentage = totalTrackedMinutes > 0 ? Math.round((mins / totalTrackedMinutes) * 100) : 0;
@@ -200,7 +193,7 @@ export const calculateMonthlyInsight = (
       `Outstanding focus consistency! Your productive ratio is ${productivityRate}%. Keep safeguarding your morning prime-focus rituals.`
     );
   }
-  if (categoryMinutesMap.fitness < 180) {
+  if ((categoryMinutesMap['fitness'] || 0) < 180) {
     improvementTips.push(
       `Physical health logging is under 3 hours for the period. Incorporating a short daily walk or 15-minute mobility routine helps prevent afternoon cognitive crashes.`
     );
@@ -225,12 +218,17 @@ export const calculateMonthlyInsight = (
   };
 };
 
-export const getDailyChartData = (timeLogs: TimeLog[], monthKey: string) => {
+export const getDailyChartData = (
+  timeLogs: TimeLog[],
+  monthKey: string,
+  categoriesMap?: Record<string, CategoryInfo>
+) => {
   const [yearStr, monthStr] = monthKey.split('-');
   const year = parseInt(yearStr, 10);
   const month = parseInt(monthStr, 10);
   const daysInMonth = new Date(year, month, 0).getDate();
 
+  const activeCategories = categoriesMap || DEFAULT_CATEGORIES;
   const monthLogs = timeLogs.filter((log) => log.date.startsWith(monthKey));
   
   const map: Record<string, { productive: number; waste: number; leisure: number }> = {};
@@ -238,8 +236,8 @@ export const getDailyChartData = (timeLogs: TimeLog[], monthKey: string) => {
     if (!map[log.date]) {
       map[log.date] = { productive: 0, waste: 0, leisure: 0 };
     }
-    const cat = CATEGORIES[log.category];
-    if (log.category === 'time_waste') {
+    const cat = getCategoryInfo(activeCategories, log.category);
+    if (log.category === 'time_waste' || (!cat.isProductive && cat.id === 'time_waste')) {
       map[log.date].waste += (log.durationMinutes || 0) / 60;
     } else if (cat && cat.isProductive) {
       map[log.date].productive += (log.durationMinutes || 0) / 60;

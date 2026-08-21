@@ -15,7 +15,6 @@ import {
   Brain
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { CATEGORIES, CATEGORY_LIST } from '../utils/categories';
 import { ActivityCategory, Task } from '../types';
 
 export const ActiveTimerWidget: React.FC = () => {
@@ -28,7 +27,10 @@ export const ActiveTimerWidget: React.FC = () => {
     resetTimer, 
     setTimerTargetMinutes,
     tasks, 
-    selectedDate 
+    selectedDate,
+    categoryList,
+    getCategory,
+    openCategoryModal
   } = useApp();
 
   const [isTaskDropdownOpen, setIsTaskDropdownOpen] = useState(false);
@@ -64,7 +66,7 @@ export const ActiveTimerWidget: React.FC = () => {
     };
   }, []);
 
-  const currentCategory = CATEGORIES[activeTimer.category] || CATEGORIES.work;
+  const currentCategory = getCategory(activeTimer.category);
   const todayTasks = tasks.filter(t => t.date === selectedDate && t.status !== 'completed');
 
   // Format seconds into display strings
@@ -216,26 +218,40 @@ export const ActiveTimerWidget: React.FC = () => {
           </button>
 
           {isCategoryDropdownOpen && (
-            <div className="absolute left-0 sm:left-auto sm:right-0 mt-1.5 w-56 max-w-[calc(100vw-3rem)] bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 py-1.5 z-50 animate-in fade-in zoom-in-95">
+            <div className="absolute left-0 sm:left-auto sm:right-0 mt-1.5 w-60 max-w-[calc(100vw-3rem)] bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 py-1.5 z-50 animate-in fade-in zoom-in-95 max-h-72 overflow-y-auto">
               <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                 Activity Category
               </div>
-              {CATEGORY_LIST.map((cat) => (
+              {categoryList.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => handleSelectCategory(cat.id)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-xs text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700/60 transition-colors"
+                  className="w-full flex items-center justify-between px-3 py-2 text-xs text-left text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700/60 transition-colors cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
                     <span 
                       className="w-2 h-2 rounded-full shrink-0" 
                       style={{ backgroundColor: cat.color }} 
                     />
-                    <span>{cat.name}</span>
+                    <span className="truncate">{cat.name}</span>
                   </span>
                   {activeTimer.category === cat.id && <Check className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
                 </button>
               ))}
+
+              <div className="border-t border-zinc-100 dark:border-zinc-700/60 mt-1 pt-1 px-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCategoryDropdownOpen(false);
+                    openCategoryModal();
+                  }}
+                  className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>+ Manage / Add Categories</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

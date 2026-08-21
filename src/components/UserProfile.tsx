@@ -34,7 +34,8 @@ export const UserProfile: React.FC = () => {
     importData, 
     resetToDemoData,
     tasks,
-    timeLogs
+    timeLogs,
+    openCategoryModal
   } = useApp();
 
   const [username, setUsername] = useState(user?.username || '');
@@ -217,6 +218,23 @@ export const UserProfile: React.FC = () => {
                 className="text-xs px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 font-medium"
               >
                 {soundEnabled ? 'Mute' : 'Enable'}
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/40">
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="w-4 h-4 text-purple-500" />
+                <div>
+                  <div className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">Activity Categories</div>
+                  <div className="text-[11px] text-zinc-400">Add custom categories, change colors or productivity types</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={openCategoryModal}
+                className="text-xs px-3 py-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800 font-semibold hover:bg-purple-100 transition-colors"
+              >
+                Manage Categories
               </button>
             </div>
 

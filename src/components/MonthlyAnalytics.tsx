@@ -35,11 +35,10 @@ import {
 } from 'recharts';
 import { useApp } from '../context/AppContext';
 import { calculateMonthlyInsight, getDailyChartData } from '../utils/analytics';
-import { CATEGORIES } from '../utils/categories';
 import { ActivityCategory } from '../types';
 
 export const MonthlyAnalytics: React.FC = () => {
-  const { tasks, timeLogs, openTaskModal } = useApp();
+  const { tasks, timeLogs, openTaskModal, categories, getCategory } = useApp();
 
   // Current selected month (YYYY-MM)
   const currentMonthKey = new Date().toISOString().slice(0, 7);
@@ -48,13 +47,13 @@ export const MonthlyAnalytics: React.FC = () => {
 
   // Compute insights for selected month
   const insight = useMemo(() => {
-    return calculateMonthlyInsight(tasks, timeLogs, selectedMonth);
-  }, [tasks, timeLogs, selectedMonth]);
+    return calculateMonthlyInsight(tasks, timeLogs, selectedMonth, categories);
+  }, [tasks, timeLogs, selectedMonth, categories]);
 
   // Compute daily series for Recharts
   const dailyChartData = useMemo(() => {
-    return getDailyChartData(timeLogs, selectedMonth);
-  }, [timeLogs, selectedMonth]);
+    return getDailyChartData(timeLogs, selectedMonth, categories);
+  }, [timeLogs, selectedMonth, categories]);
 
   // Month navigation helpers
   const handlePrevMonth = () => {
@@ -442,7 +441,7 @@ export const MonthlyAnalytics: React.FC = () => {
 
           <div className="space-y-2.5">
             {insight.topProductiveActivities.map((act, idx) => {
-              const catDef = CATEGORIES[act.category] || CATEGORIES.work;
+              const catDef = getCategory(act.category);
               return (
                 <div key={idx} className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-zinc-700/60 flex items-center justify-between gap-3">
                   <div className="min-w-0">

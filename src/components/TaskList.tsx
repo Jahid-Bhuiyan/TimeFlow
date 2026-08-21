@@ -16,7 +16,6 @@ import {
   Repeat
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { CATEGORIES } from '../utils/categories';
 import { ActivityCategory, Task, TaskPriority } from '../types';
 
 export const TaskList: React.FC = () => {
@@ -28,7 +27,10 @@ export const TaskList: React.FC = () => {
     startTimer, 
     selectedDate,
     activeCategoryFilter,
-    setActiveCategoryFilter
+    setActiveCategoryFilter,
+    getCategory,
+    categoryList,
+    openCategoryModal
   } = useApp();
 
   const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'completed' | 'urgent'>('all');
@@ -85,7 +87,7 @@ export const TaskList: React.FC = () => {
   };
 
   const renderTaskItem = (task: Task) => {
-    const categoryInfo = CATEGORIES[task.category] || CATEGORIES.work;
+    const categoryInfo = getCategory(task.category);
     const isDone = task.status === 'completed';
 
     return (
@@ -148,9 +150,9 @@ export const TaskList: React.FC = () => {
               {/* Time logged pill */}
               <span className="inline-flex items-center gap-1 text-zinc-500 dark:text-zinc-400 font-mono">
                 <Clock className="w-3 h-3" />
-                <span>{task.loggedMinutes || 0}m logged</span>
+                <span>{task.loggedMinutes || 0}m</span>
                 {task.targetMinutes && (
-                  <span className="text-zinc-400">/ {task.targetMinutes}m target</span>
+                  <span className="text-zinc-400">/ {task.targetMinutes} target</span>
                 )}
               </span>
             </div>

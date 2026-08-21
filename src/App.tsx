@@ -11,6 +11,7 @@ import { UserProfile } from './components/UserProfile';
 import { AuthModal } from './components/modals/AuthModal';
 import { TaskModal } from './components/modals/TaskModal';
 import { LogModal } from './components/modals/LogModal';
+import { CategoryManagerModal } from './components/modals/CategoryManagerModal';
 
 const MainLayout: React.FC = () => {
   const { activeNavTab } = useApp();
@@ -57,6 +58,7 @@ const MainLayout: React.FC = () => {
       <AuthModal />
       <TaskModal />
       <LogModal />
+      <CategoryManagerModal />
 
     </div>
   );

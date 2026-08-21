@@ -14,7 +14,6 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { CATEGORIES, CATEGORY_LIST } from '../utils/categories';
 import { ActivityCategory, TimeLog } from '../types';
 
 export const TimeLogsHistory: React.FC = () => {
@@ -22,7 +21,9 @@ export const TimeLogsHistory: React.FC = () => {
     timeLogs, 
     deleteTimeLog, 
     openLogModal, 
-    exportData 
+    exportData,
+    categoryList,
+    getCategory
   } = useApp();
 
   const [search, setSearch] = useState('');
@@ -114,7 +115,7 @@ export const TimeLogsHistory: React.FC = () => {
           className="text-xs px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/70 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 focus:outline-none"
         >
           <option value="all">All Categories</option>
-          {CATEGORY_LIST.map((c) => (
+          {categoryList.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
@@ -171,8 +172,8 @@ export const TimeLogsHistory: React.FC = () => {
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 overflow-hidden shadow-2xs">
           <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
             {filteredLogs.map((log) => {
-              const catDef = CATEGORIES[log.category] || CATEGORIES.work;
-              const isWaste = log.category === 'time_waste';
+              const catDef = getCategory(log.category);
+              const isWaste = !catDef.isProductive || log.category === 'time_waste';
 
               return (
                 <div
