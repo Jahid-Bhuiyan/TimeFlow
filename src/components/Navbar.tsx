@@ -13,7 +13,6 @@ import {
   Flame
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { CATEGORIES } from '../utils/categories';
 
 export const Navbar: React.FC = () => {
   const { 
@@ -30,7 +29,9 @@ export const Navbar: React.FC = () => {
     openLogModal,
     setIsAuthModalOpen,
     tasks,
-    timeLogs
+    getCategory,
+    activeNavTab,
+    setActiveNavTab
   } = useApp();
 
   // Format seconds into MM:SS or HH:MM:SS
@@ -44,42 +45,42 @@ export const Navbar: React.FC = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const timerCategory = CATEGORIES[activeTimer.category] || CATEGORIES.work;
-
-  // Calculate today's streak and completed
-  const completedToday = tasks.filter(t => t.status === 'completed').length;
+  const timerCategory = getCategory(activeTimer.category);
 
   return (
-    <header className="sticky top-0 z-30 w-full border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md transition-colors duration-200 pt-safe">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-3">
+    <header className="sticky top-0 z-30 w-full border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md transition-colors duration-200 pt-safe overflow-hidden">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-3 min-w-0">
         
         {/* Left Branding */}
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-sm shadow-blue-500/20">
-            <Clock className="w-5 h-5 animate-pulse" />
+        <div 
+          onClick={() => setActiveNavTab('today')}
+          className="flex items-center gap-2 sm:gap-3 shrink-0 cursor-pointer"
+        >
+          <div className="w-8 sm:w-9 h-8 sm:h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-sm shadow-blue-500/20 shrink-0">
+            <Clock className="w-4 sm:w-5 h-4 sm:h-5 animate-pulse" />
           </div>
           <div className="flex flex-col">
-            <span className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50 flex items-center gap-1.5 font-display">
+            <span className="text-base sm:text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50 flex items-center gap-1 sm:gap-1.5 font-display">
               TimeFlow
-              <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+              <span className="hidden xs:inline-block px-1.5 py-0.5 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
                 Focus
               </span>
             </span>
-            <span className="hidden sm:block text-[11px] text-zinc-600 dark:text-zinc-300 -mt-1 font-medium">
+            <span className="hidden md:block text-[11px] text-zinc-600 dark:text-zinc-300 -mt-1 font-medium">
               Eliminate distractions & master routine
             </span>
           </div>
         </div>
 
-        {/* Center: Live Running Mini-Timer Bar (Visible when timer is active) */}
+        {/* Center: Live Running Mini-Timer Bar (Visible on tablet & desktop to avoid breaking mobile header) */}
         {activeTimer.isRunning && (
-          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-inner animate-in fade-in zoom-in-95 duration-200">
+          <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-inner animate-in fade-in zoom-in-95 duration-200 shrink min-w-0">
             <div 
-              className="w-2.5 h-2.5 rounded-full animate-ping"
+              className="w-2.5 h-2.5 rounded-full animate-ping shrink-0"
               style={{ backgroundColor: timerCategory.color }} 
             />
-            <div className="flex flex-col text-left">
-              <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 max-w-[110px] sm:max-w-[180px] truncate">
+            <div className="flex flex-col text-left min-w-0">
+              <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 max-w-[100px] md:max-w-[160px] truncate">
                 {activeTimer.taskTitle}
               </span>
               <span className="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
@@ -87,7 +88,7 @@ export const Navbar: React.FC = () => {
               </span>
             </div>
             
-            <div className="flex items-center gap-1 ml-1">
+            <div className="flex items-center gap-1 ml-1 shrink-0">
               {activeTimer.isPaused ? (
                 <button
                   id="btn-resume-mini-timer"
@@ -120,13 +121,13 @@ export const Navbar: React.FC = () => {
         )}
 
         {/* Right Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           
-          {/* Quick Add Buttons */}
+          {/* Quick Add Buttons (desktop only) */}
           <button
             id="btn-quick-task"
             onClick={() => openTaskModal()}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all hover:shadow active:scale-95 cursor-pointer"
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all hover:shadow active:scale-95 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>New Task</span>
@@ -135,7 +136,7 @@ export const Navbar: React.FC = () => {
           <button
             id="btn-quick-log"
             onClick={() => openLogModal()}
-            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 transition-all active:scale-95 cursor-pointer"
+            className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 transition-all active:scale-95 cursor-pointer"
           >
             <Clock className="w-3.5 h-3.5" />
             <span>Log Activity</span>
@@ -165,12 +166,12 @@ export const Navbar: React.FC = () => {
           {user ? (
             <div 
               onClick={() => setIsAuthModalOpen(true)}
-              className="flex items-center gap-2 pl-2 border-l border-zinc-200 dark:border-zinc-800 cursor-pointer hover:opacity-80 transition-opacity"
+              className="flex items-center gap-2 pl-1.5 sm:pl-2 border-l border-zinc-200 dark:border-zinc-800 cursor-pointer hover:opacity-80 transition-opacity"
             >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-semibold text-xs flex items-center justify-center shadow-xs">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-semibold text-xs flex items-center justify-center shadow-xs">
                 {user.username.charAt(0).toUpperCase()}
               </div>
-              <span className="hidden lg:block text-xs font-medium text-zinc-700 dark:text-zinc-300 max-w-[100px] truncate">
+              <span className="hidden xl:block text-xs font-medium text-zinc-700 dark:text-zinc-300 max-w-[100px] truncate">
                 {user.username}
               </span>
             </div>
@@ -178,7 +179,7 @@ export const Navbar: React.FC = () => {
             <button
               id="btn-login-header"
               onClick={() => setIsAuthModalOpen(true)}
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 hover:opacity-90 transition-opacity"
+              className="text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 hover:opacity-90 transition-opacity"
             >
               Sign In
             </button>

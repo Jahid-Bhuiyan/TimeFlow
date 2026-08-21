@@ -20,24 +20,84 @@ export const LogModal: React.FC = () => {
   const [taskTitle, setTaskTitle] = useState('');
   const [category, setCategory] = useState<ActivityCategory>('work');
   const [durationMinutes, setDurationMinutes] = useState<number>(30);
+  const [isCustomDuration, setIsCustomDuration] = useState(false);
   const [date, setDate] = useState<string>(selectedDate || getTodayDateString());
+  const [startTimeOfDay, setStartTimeOfDay] = useState<string>('');
+  const [endTimeOfDay, setEndTimeOfDay] = useState<string>('');
   const [notes, setNotes] = useState('');
+
+  const durationPresets = [15, 25, 30, 45, 60, 90, 120];
 
   useEffect(() => {
     if (editingLog) {
       setTaskTitle(editingLog.taskTitle);
       setCategory(editingLog.category);
-      setDurationMinutes(editingLog.durationMinutes);
+      const mins = editingLog.durationMinutes || 30;
+      setDurationMinutes(mins);
+      setIsCustomDuration(![15, 25, 30, 45, 60, 90, 120].includes(mins));
       setDate(editingLog.date);
       setNotes(editingLog.notes || '');
+      if (editingLog.startTime) {
+        try {
+          const d = new Date(editingLog.startTime);
+          setStartTimeOfDay(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+        } catch {
+          setStartTimeOfDay('');
+        }
+      }
+      if (editingLog.endTime) {
+        try {
+          const d = new Date(editingLog.endTime);
+          setEndTimeOfDay(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+        } catch {
+          setEndTimeOfDay('');
+        }
+      }
     } else {
       setTaskTitle('');
       setCategory('work');
       setDurationMinutes(30);
+      setIsCustomDuration(false);
       setDate(selectedDate || getTodayDateString());
       setNotes('');
+      // Set default start & end time based on current time
+      const now = new Date();
+      const endH = String(now.getHours()).padStart(2, '0');
+      const endM = String(now.getMinutes()).padStart(2, '0');
+      setEndTimeOfDay(`${endH}:${endM}`);
+      const past = new Date(now.getTime() - 30 * 60000);
+      const startH = String(past.getHours()).padStart(2, '0');
+      const startM = String(past.getMinutes()).padStart(2, '0');
+      setStartTimeOfDay(`${startH}:${startM}`);
     }
   }, [editingLog, isLogModalOpen, selectedDate]);
+
+  // Handle time of day range change
+  const handleStartTimeChange = (newStartTime: string) => {
+    setStartTimeOfDay(newStartTime);
+    if (newStartTime && endTimeOfDay) {
+      const [sh, sm] = newStartTime.split(':').map(Number);
+      const [eh, em] = endTimeOfDay.split(':').map(Number);
+      const diff = (eh * 60 + em) - (sh * 60 + sm);
+      if (diff > 0 && diff <= 1440) {
+        setDurationMinutes(diff);
+        setIsCustomDuration(true);
+      }
+    }
+  };
+
+  const handleEndTimeChange = (newEndTime: string) => {
+    setEndTimeOfDay(newEndTime);
+    if (startTimeOfDay && newEndTime) {
+      const [sh, sm] = startTimeOfDay.split(':').map(Number);
+      const [eh, em] = newEndTime.split(':').map(Number);
+      const diff = (eh * 60 + em) - (sh * 60 + sm);
+      if (diff > 0 && diff <= 1440) {
+        setDurationMinutes(diff);
+        setIsCustomDuration(true);
+      }
+    }
+  };
 
   if (!isLogModalOpen) return null;
 

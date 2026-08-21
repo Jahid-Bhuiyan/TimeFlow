@@ -20,8 +20,11 @@ export const TaskModal: React.FC = () => {
   const [category, setCategory] = useState<ActivityCategory>('work');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [targetMinutes, setTargetMinutes] = useState<number>(30);
+  const [isCustomDuration, setIsCustomDuration] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
   const [routineSlot, setRoutineSlot] = useState<RoutineSlot>('morning');
+
+  const durationPresets = [15, 25, 30, 45, 60, 90];
 
   useEffect(() => {
     if (editingTask) {
@@ -29,7 +32,9 @@ export const TaskModal: React.FC = () => {
       setDescription(editingTask.description || '');
       setCategory(editingTask.category);
       setPriority(editingTask.priority);
-      setTargetMinutes(editingTask.targetMinutes || 30);
+      const mins = editingTask.targetMinutes || 30;
+      setTargetMinutes(mins);
+      setIsCustomDuration(![15, 25, 30, 45, 60, 90].includes(mins));
       setIsRecurring(editingTask.isRecurringRoutine || false);
       setRoutineSlot(editingTask.routineTimeSlot || 'morning');
     } else {
@@ -38,6 +43,7 @@ export const TaskModal: React.FC = () => {
       setCategory('work');
       setPriority('medium');
       setTargetMinutes(30);
+      setIsCustomDuration(false);
       setIsRecurring(false);
       setRoutineSlot('morning');
     }
@@ -218,23 +224,53 @@ export const TaskModal: React.FC = () => {
             {/* Target Duration */}
             <div>
               <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                Target Minutes: <span className="font-mono text-blue-600">{targetMinutes}m</span>
+                Target Minutes: <span className="font-mono text-blue-600 dark:text-blue-400">{targetMinutes}m {targetMinutes >= 60 ? `(${Number((targetMinutes / 60).toFixed(1))}h)` : ''}</span>
               </label>
-              <div className="flex items-center gap-1.5">
-                {[15, 30, 45, 60, 90, 120].map((mins) => (
+              
+              <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+                {durationPresets.map((mins) => (
                   <button
                     key={mins}
                     type="button"
-                    onClick={() => setTargetMinutes(mins)}
-                    className={`flex-1 py-1.5 text-xs font-mono rounded-lg border transition-all ${
-                      targetMinutes === mins
-                        ? 'bg-blue-600 text-white font-bold border-blue-600'
+                    onClick={() => {
+                      setTargetMinutes(mins);
+                      setIsCustomDuration(false);
+                    }}
+                    className={`flex-1 min-w-[36px] py-1.5 text-xs font-mono rounded-lg border transition-all shrink-0 cursor-pointer ${
+                      targetMinutes === mins && !isCustomDuration
+                        ? 'bg-blue-600 text-white font-bold border-blue-600 shadow-xs'
                         : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100'
                     }`}
                   >
                     {mins}m
                   </button>
                 ))}
+
+                {/* Manual Exact Minutes Input */}
+                <div className="relative flex items-center shrink-0 ml-0.5">
+                  <input
+                    type="number"
+                    min="1"
+                    max="720"
+                    placeholder="Exact"
+                    value={isCustomDuration ? targetMinutes : ''}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      setIsCustomDuration(true);
+                      if (!isNaN(val)) {
+                        setTargetMinutes(Math.max(1, Math.min(720, val)));
+                      }
+                    }}
+                    onFocus={() => setIsCustomDuration(true)}
+                    className={`w-16 px-2 py-1.5 text-center text-xs font-mono rounded-lg border transition-all ${
+                      isCustomDuration
+                        ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-600 dark:text-blue-400 font-bold'
+                        : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 placeholder-zinc-400'
+                    } focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                    title="Input exact target minutes manually"
+                  />
+                  <span className="text-[10px] text-zinc-400 ml-1 font-mono">m</span>
+                </div>
               </div>
             </div>
 

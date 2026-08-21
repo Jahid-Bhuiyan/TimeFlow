@@ -168,7 +168,7 @@ export const QuickLogBar: React.FC = () => {
                   ))}
                 </optgroup>
                 <optgroup label="Category Actions">
-                  <option value="__add_new__">✨ + Add / Edit Categories...</option>
+                  <option value="__add_new__">+ Add / Edit Categories...</option>
                 </optgroup>
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-zinc-500">

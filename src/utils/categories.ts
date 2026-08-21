@@ -90,20 +90,55 @@ export const DEFAULT_CATEGORIES: Record<string, CategoryInfo> = {
 export const CATEGORIES = DEFAULT_CATEGORIES;
 export const CATEGORY_LIST = Object.values(DEFAULT_CATEGORIES);
 
-export const PRESET_CATEGORY_COLORS = [
-  { hex: '#3B82F6', label: 'Blue' },
-  { hex: '#8B5CF6', label: 'Purple' },
-  { hex: '#10B981', label: 'Emerald' },
-  { hex: '#06B6D4', label: 'Cyan' },
-  { hex: '#F59E0B', label: 'Amber' },
-  { hex: '#EC4899', label: 'Pink' },
-  { hex: '#EF4444', label: 'Crimson' },
-  { hex: '#6366F1', label: 'Indigo' },
-  { hex: '#14B8A6', label: 'Teal' },
-  { hex: '#84CC16', label: 'Lime' },
-  { hex: '#F97316', label: 'Orange' },
-  { hex: '#64748B', label: 'Slate' }
+export const AUTOMATIC_CATEGORY_PALETTE = [
+  '#3B82F6', // Blue
+  '#8B5CF6', // Purple
+  '#10B981', // Emerald
+  '#06B6D4', // Cyan
+  '#F59E0B', // Amber
+  '#EC4899', // Pink
+  '#6366F1', // Indigo
+  '#14B8A6', // Teal
+  '#F97316', // Orange
+  '#84CC16', // Lime
+  '#A855F7', // Violet
+  '#0EA5E9', // Sky
+  '#059669', // Mint
+  '#D97706', // Warm Bronze
+  '#7C3AED'  // Deep Violet
 ];
+
+export const DISTRACTION_PALETTE = [
+  '#EF4444', // Crimson
+  '#F43F5E', // Rose
+  '#EC4899', // Pink
+  '#FB7185', // Coral
+  '#E11D48', // Ruby
+  '#EA580C'  // Bright Rust
+];
+
+export function getAutoCategoryColor(
+  name: string,
+  isProductive: boolean = true
+): string {
+  const activePalette = isProductive ? AUTOMATIC_CATEGORY_PALETTE : DISTRACTION_PALETTE;
+
+  if (!name || !name.trim()) {
+    return activePalette[0];
+  }
+
+  // Deterministic positive hash based on category name
+  let hash = 0;
+  const str = name.trim().toLowerCase();
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  const index = Math.abs(hash) % activePalette.length;
+  return activePalette[index];
+}
+
+export const PRESET_CATEGORY_COLORS = AUTOMATIC_CATEGORY_PALETTE.map((hex) => ({ hex, label: hex }));
 
 export function getCategoryInfo(
   categoriesMap: Record<string, CategoryInfo> | undefined,
@@ -121,11 +156,13 @@ export function getCategoryInfo(
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
 
+  const autoColor = getAutoCategoryColor(cleanName || categoryId, true);
+
   return {
     id: categoryId,
     name: cleanName || 'Custom Activity',
     isProductive: true,
-    color: '#6366F1',
+    color: autoColor,
     textColor: 'text-indigo-600 dark:text-indigo-400',
     bgLight: 'bg-indigo-50 dark:bg-indigo-950/40',
     bgDark: 'bg-indigo-900/30',

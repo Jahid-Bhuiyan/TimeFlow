@@ -20,6 +20,7 @@ export const TimeLogsHistory: React.FC = () => {
   const { 
     timeLogs, 
     deleteTimeLog, 
+    clearAllTimeLogs,
     openLogModal, 
     exportData,
     categoryList,
@@ -30,6 +31,7 @@ export const TimeLogsHistory: React.FC = () => {
   const [selectedCat, setSelectedCat] = useState<ActivityCategory | 'all'>('all');
   const [filterProductive, setFilterProductive] = useState<'all' | 'productive' | 'waste'>('all');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const filteredLogs = timeLogs.filter((log) => {
     if (selectedCat !== 'all' && log.category !== selectedCat) return false;
@@ -73,6 +75,17 @@ export const TimeLogsHistory: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {timeLogs.length > 0 && (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 text-xs font-semibold transition-all cursor-pointer border border-rose-200/60 dark:border-rose-900/40"
+              title="Clear all recorded logs"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Clear All Logs</span>
+            </button>
+          )}
+
           <button
             onClick={() => exportData('csv')}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-semibold transition-all cursor-pointer"
@@ -91,6 +104,48 @@ export const TimeLogsHistory: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Clear All Confirmation Modal */}
+      {showClearConfirm && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={() => setShowClearConfirm(false)}
+        >
+          <div 
+            className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-6 relative animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-3">
+              <Trash2 className="w-5 h-5" />
+            </div>
+            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-50">
+              Clear All Activity Logs?
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
+              This will permanently delete all {timeLogs.length} activity time records and reset today&apos;s logged hours. This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-2 mt-5">
+              <button
+                type="button"
+                onClick={() => setShowClearConfirm(false)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearAllTimeLogs();
+                  setShowClearConfirm(false);
+                }}
+                className="px-4 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-colors"
+              >
+                Yes, Clear All Logs
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filter & Search Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white dark:bg-zinc-900 p-3.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xs">
@@ -146,7 +201,7 @@ export const TimeLogsHistory: React.FC = () => {
               filterProductive === 'waste' ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 shadow-xs font-bold' : 'text-zinc-500'
             }`}
           >
-            Distraction ⚠️
+            Distraction
           </button>
         </div>
 

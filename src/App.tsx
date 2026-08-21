@@ -34,19 +34,19 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col font-sans transition-colors duration-200 overflow-x-hidden w-full max-w-full">
       
       {/* Top Header */}
       <Navbar />
 
       {/* Main App Container */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
+      <div className="flex-1 flex max-w-7xl w-full mx-auto min-w-0 overflow-x-hidden">
         
         {/* Desktop Sidebar */}
         <Sidebar />
 
         {/* Dynamic Center Stage Content Area */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 max-w-full overflow-y-auto pb-28 sm:pb-12">
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 min-w-0 max-w-full overflow-y-auto overflow-x-hidden pb-28 sm:pb-12">
           {renderActiveView()}
         </main>
       </div>

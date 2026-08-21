@@ -3,7 +3,7 @@ import { ActiveTimer, ActivityCategory, CategoryInfo, Task, TimeLog, User } from
 import { generateInitialData, getTodayDateString, INITIAL_USER } from '../utils/mockData';
 import { sounds } from '../utils/audio';
 import { triggerGoalReachedConfetti, triggerTaskConfetti } from '../utils/confetti';
-import { DEFAULT_CATEGORIES, getCategoryInfo } from '../utils/categories';
+import { DEFAULT_CATEGORIES, getCategoryInfo, getAutoCategoryColor } from '../utils/categories';
 
 interface AppContextType {
   user: User | null;
@@ -22,7 +22,7 @@ interface AppContextType {
   editingCategory: CategoryInfo | null;
   openCategoryModal: (category?: CategoryInfo | null) => void;
   closeCategoryModal: () => void;
-  addCategory: (category: { name: string; isProductive: boolean; color: string; description?: string }) => CategoryInfo;
+  addCategory: (category: { name: string; isProductive: boolean; color?: string; description?: string }) => CategoryInfo;
   updateCategory: (id: string, updates: Partial<CategoryInfo>) => void;
   deleteCategory: (id: string) => void;
   resetCategoriesToDefault: () => void;
@@ -64,6 +64,7 @@ interface AppContextType {
   addTimeLog: (log: Omit<TimeLog, 'id' | 'userId'>) => TimeLog;
   updateTimeLog: (logId: string, updates: Partial<TimeLog>) => void;
   deleteTimeLog: (logId: string) => void;
+  clearAllTimeLogs: () => void;
   quickLogActivity: (params: { taskTitle: string; category: ActivityCategory; durationMinutes: number; notes?: string; taskId?: string }) => void;
   
   // Auth & Settings
@@ -256,16 +257,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsCategoryModalOpen(false);
   };
 
-  const addCategory = useCallback((newCat: { name: string; isProductive: boolean; color: string; description?: string }) => {
+  const addCategory = useCallback((newCat: { name: string; isProductive: boolean; color?: string; description?: string }) => {
     sounds.playClick(soundEnabled);
     const id = newCat.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_') || `cat_${Date.now()}`;
     const cleanId = categories[id] ? `${id}_${Date.now().toString().slice(-4)}` : id;
+    const autoColor = newCat.color || getAutoCategoryColor(newCat.name, newCat.isProductive);
     
     const categoryInfo: CategoryInfo = {
       id: cleanId,
       name: newCat.name.trim(),
       isProductive: newCat.isProductive,
-      color: newCat.color || '#3B82F6',
+      color: autoColor,
       textColor: 'text-zinc-900 dark:text-zinc-100',
       bgLight: 'bg-zinc-50 dark:bg-zinc-800/60',
       borderColor: 'border-zinc-200 dark:border-zinc-700',
@@ -285,11 +287,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sounds.playClick(soundEnabled);
     setCategories((prev) => {
       if (!prev[id]) return prev;
+      const current = prev[id];
+      const nextName = updates.name !== undefined ? updates.name : current.name;
+      const nextIsProductive = updates.isProductive !== undefined ? updates.isProductive : current.isProductive;
+      const autoColor = updates.color || current.color || getAutoCategoryColor(nextName, nextIsProductive);
+
       return {
         ...prev,
         [id]: {
-          ...prev[id],
-          ...updates
+          ...current,
+          ...updates,
+          color: autoColor
         }
       };
     });
@@ -588,6 +596,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTimeLogs((prev) => prev.filter((l) => l.id !== logId));
   }, [soundEnabled]);
 
+  const clearAllTimeLogs = useCallback(() => {
+    sounds.playClick(soundEnabled);
+    setTimeLogs([]);
+  }, [soundEnabled]);
+
   const quickLogActivity = useCallback((params: {
     taskTitle: string;
     category: ActivityCategory;
@@ -831,6 +844,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addTimeLog,
         updateTimeLog,
         deleteTimeLog,
+        clearAllTimeLogs,
         quickLogActivity,
         login,
         signup,

@@ -10,11 +10,12 @@ import {
   Sparkles,
   Layers,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Palette
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { CategoryInfo } from '../../types';
-import { PRESET_CATEGORY_COLORS } from '../../utils/categories';
+import { getAutoCategoryColor } from '../../utils/categories';
 
 export const CategoryManagerModal: React.FC = () => {
   const { 
@@ -32,18 +33,19 @@ export const CategoryManagerModal: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'create' | 'list'>('create');
   const [name, setName] = useState('');
   const [isProductive, setIsProductive] = useState(true);
-  const [color, setColor] = useState('#3B82F6');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
+
+  // Automatically compute color based on name and category type
+  const autoColor = getAutoCategoryColor(name, isProductive);
 
   useEffect(() => {
     if (editingCategory) {
       setEditId(editingCategory.id);
       setName(editingCategory.name);
       setIsProductive(editingCategory.isProductive);
-      setColor(editingCategory.color || '#3B82F6');
       setDescription(editingCategory.description || '');
       setActiveTab('create');
     } else {
@@ -55,7 +57,6 @@ export const CategoryManagerModal: React.FC = () => {
     setEditId(null);
     setName('');
     setIsProductive(true);
-    setColor('#3B82F6');
     setDescription('');
     setError('');
   };
@@ -64,7 +65,6 @@ export const CategoryManagerModal: React.FC = () => {
     setEditId(cat.id);
     setName(cat.name);
     setIsProductive(cat.isProductive);
-    setColor(cat.color || '#3B82F6');
     setDescription(cat.description || '');
     setActiveTab('create');
     setError('');
@@ -78,11 +78,13 @@ export const CategoryManagerModal: React.FC = () => {
       return;
     }
 
+    const assignedColor = getAutoCategoryColor(name, isProductive);
+
     if (editId) {
       updateCategory(editId, {
         name: name.trim(),
         isProductive,
-        color,
+        color: assignedColor,
         description: description.trim()
       });
       setSuccessMessage(`Updated "${name.trim()}" successfully!`);
@@ -90,7 +92,7 @@ export const CategoryManagerModal: React.FC = () => {
       addCategory({
         name: name.trim(),
         isProductive,
-        color,
+        color: assignedColor,
         description: description.trim()
       });
       setSuccessMessage(`Added "${name.trim()}" to categories!`);
@@ -143,7 +145,7 @@ export const CategoryManagerModal: React.FC = () => {
               Category Manager
             </h2>
             <p className="text-xs text-zinc-400">
-              Create, edit, or customize categories for timers, tasks, and analytics
+              Create, edit, or customize categories with automatic color palettes
             </p>
           </div>
         </div>
@@ -216,7 +218,7 @@ export const CategoryManagerModal: React.FC = () => {
                     setName(e.target.value);
                     setError('');
                   }}
-                  placeholder="E.g., Deep Coding, Trading, Gym, Social Media..."
+                  placeholder="E.g., Deep Coding, Client Work, Fitness, Social Media..."
                   className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
@@ -265,51 +267,6 @@ export const CategoryManagerModal: React.FC = () => {
                 </div>
               </div>
 
-              {/* Color Selection */}
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                  Color Tag
-                </label>
-                <div className="flex items-center gap-2 flex-wrap mb-2">
-                  {PRESET_CATEGORY_COLORS.map((c) => (
-                    <button
-                      key={c.hex}
-                      type="button"
-                      onClick={() => setColor(c.hex)}
-                      className={`w-7 h-7 rounded-full transition-transform flex items-center justify-center ${
-                        color.toLowerCase() === c.hex.toLowerCase()
-                          ? 'scale-110 ring-2 ring-offset-2 ring-zinc-800 dark:ring-zinc-200'
-                          : 'hover:scale-105'
-                      }`}
-                      style={{ backgroundColor: c.hex }}
-                      title={c.label}
-                    >
-                      {color.toLowerCase() === c.hex.toLowerCase() && (
-                        <Check className="w-3.5 h-3.5 text-white drop-shadow-xs" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-                
-                {/* Custom Color Input */}
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-zinc-400">Custom Hex:</span>
-                  <input
-                    type="color"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    className="w-7 h-7 rounded-lg border border-zinc-200 dark:border-zinc-700 cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    placeholder="#3B82F6"
-                    className="w-24 px-2 py-1 text-xs font-mono rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 uppercase"
-                  />
-                </div>
-              </div>
-
               {/* Notes / Description */}
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
@@ -319,30 +276,36 @@ export const CategoryManagerModal: React.FC = () => {
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="E.g., High intensity client deliverables..."
+                  placeholder="E.g., High intensity deliverables, learning, side projects..."
                   className="w-full px-3 py-2 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
 
-              {/* Live Preview Card */}
-              <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/60 dark:border-zinc-700/60">
-                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block mb-1.5">
-                  Live Preview in App
-                </span>
-                <div className="flex items-center gap-2 flex-wrap">
+              {/* Live Preview Card with Auto-Color */}
+              <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/60 dark:border-zinc-700/60">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+                    Live Preview (Automatic Color)
+                  </span>
+                  <span className="flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
+                    <Palette className="w-3 h-3 text-blue-500" />
+                    <span>Auto-harmonized</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2.5 flex-wrap">
                   <div 
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors"
                     style={{
-                      backgroundColor: `${color}15`,
-                      borderColor: `${color}40`,
-                      color: color
+                      backgroundColor: `${autoColor}15`,
+                      borderColor: `${autoColor}40`,
+                      color: autoColor
                     }}
                   >
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                    <span className="w-2.5 h-2.5 rounded-full shadow-2xs" style={{ backgroundColor: autoColor }} />
                     <span>{name.trim() || 'Category Name'}</span>
                   </div>
-                  <span className="text-[11px] text-zinc-500">
-                    {isProductive ? '• Productive Goal' : '• Leisure / Distraction'}
+                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {isProductive ? '• Productive Category' : '• Distraction / Leisure Category'}
                   </span>
                 </div>
               </div>
@@ -363,7 +326,7 @@ export const CategoryManagerModal: React.FC = () => {
                   className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>{editId ? 'Save Changes' : 'Create Category'}</span>
+                  <span>{editId ? 'Save Category' : 'Create Category'}</span>
                 </button>
               </div>
 

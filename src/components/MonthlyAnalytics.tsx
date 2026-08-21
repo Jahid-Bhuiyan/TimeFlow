@@ -491,7 +491,7 @@ export const MonthlyAnalytics: React.FC = () => {
 
           {insight.neglectedImportantTasks.length === 0 ? (
             <div className="py-6 text-center text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-              🎉 No high-priority tasks are currently neglected!
+              No high-priority tasks are currently neglected!
             </div>
           ) : (
             <div className="space-y-2.5">

@@ -113,7 +113,7 @@ export const TodaySummaryCards: React.FC = () => {
             {wasteMinutes > 60 ? `${wasteHours}h` : `${wasteMinutes}m`}
           </div>
           <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1 truncate font-medium">
-            {wasteMinutes === 0 ? 'Zero waste logged today 🎉' : 'Identified non-deliberate'}
+            {wasteMinutes === 0 ? 'Zero waste logged today' : 'Identified non-deliberate'}
           </p>
         </div>
       </div>
