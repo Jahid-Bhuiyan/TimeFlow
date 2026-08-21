@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="50%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+    <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#ffffff" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- App Icon Background with smooth iOS squircle curve -->
+  <rect width="512" height="512" rx="115" fill="url(#bgGrad)" />
+  
+  <!-- Subtle inner shadow overlay -->
+  <rect width="512" height="512" rx="115" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="4" />
+  
+  <!-- Outer Stopwatch Ring / Flow Arc -->
+  <circle cx="256" cy="270" r="140" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="24" />
+  <path d="M 256 130 A 140 140 0 1 1 138 348" fill="none" stroke="url(#arcGrad)" stroke-width="24" stroke-linecap="round" filter="url(#glow)" />
+  
+  <!-- Top Stopwatch Crown / Button -->
+  <path d="M 240 76 L 272 76" stroke="#ffffff" stroke-width="18" stroke-linecap="round" />
+  <path d="M 256 76 L 256 112" stroke="#ffffff" stroke-width="16" stroke-linecap="round" />
+  
+  <!-- Angled Lap Trigger -->
+  <path d="M 355 130 L 378 107" stroke="rgba(255,255,255,0.7)" stroke-width="14" stroke-linecap="round" />
+  
+  <!-- Clock Hands (Indicating dynamic focus & momentum) -->
+  <circle cx="256" cy="270" r="16" fill="#ffffff" filter="url(#glow)" />
+  <line x1="256" y1="270" x2="256" y2="180" stroke="#ffffff" stroke-width="16" stroke-linecap="round" />
+  <line x1="256" y1="270" x2="330" y2="295" stroke="#38bdf8" stroke-width="14" stroke-linecap="round" />
+  
+  <!-- Focus Sparkle Dot -->
+  <circle cx="256" cy="130" r="14" fill="#ffffff" filter="url(#glow)" />
+</svg>

@@ -1,0 +1,6 @@
+{
+  "name": "TimeFlow",
+  "description": "Ultra-minimalist daily focus tracker, live stopwatch & timers, routines, and monthly analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
