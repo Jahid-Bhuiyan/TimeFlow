@@ -45,7 +45,7 @@ const MainLayout: React.FC = () => {
         <Sidebar />
 
         {/* Dynamic Center Stage Content Area */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 max-w-full overflow-y-auto pb-24 sm:pb-12">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 max-w-full overflow-y-auto pb-28 sm:pb-12">
           {renderActiveView()}
         </main>
       </div>
