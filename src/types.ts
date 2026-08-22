@@ -16,7 +16,7 @@ export interface CategoryInfo {
 
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
-export type TaskStatus = 'pending' | 'in_progress' | 'completed';
+export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'missed';
 
 export type RoutineSlot = 'morning' | 'afternoon' | 'evening' | 'anytime';
 

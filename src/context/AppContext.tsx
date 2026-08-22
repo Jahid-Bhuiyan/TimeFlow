@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { ActiveTimer, ActivityCategory, CategoryInfo, Task, TimeLog, User } from '../types';
+import { ActiveTimer, ActivityCategory, CategoryInfo, Task, TaskStatus, TimeLog, User } from '../types';
 import { generateInitialData, getTodayDateString, INITIAL_USER } from '../utils/mockData';
 import { sounds } from '../utils/audio';
 import { triggerGoalReachedConfetti, triggerTaskConfetti } from '../utils/confetti';
@@ -67,6 +67,7 @@ interface AppContextType {
   addTask: (task: Omit<Task, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'loggedMinutes'> & { loggedMinutes?: number }) => Task;
   updateTask: (taskId: string, updates: Partial<Task>) => void;
   toggleTaskComplete: (taskId: string) => void;
+  toggleTaskMissed: (taskId: string) => void;
   deleteTask: (taskId: string) => void;
   moveTaskOrder: (taskId: string, direction: 'up' | 'down') => void;
   syncRoutinesForDate: (targetDate: string) => void;
@@ -701,6 +702,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   }, [soundEnabled]);
 
+  // Toggle task as missed/crossed out - auto-deducts from plan time & pushes to bottom of list
+  const toggleTaskMissed = useCallback((taskId: string) => {
+    sounds.playClick(soundEnabled);
+    setTasks((prevTasks) => {
+      const targetTask = prevTasks.find((t) => t.id === taskId);
+      if (!targetTask) return prevTasks;
+
+      const isCurrentlyMissed = targetTask.status === 'missed';
+      const nextStatus: TaskStatus = isCurrentlyMissed ? 'pending' : 'missed';
+
+      if (nextStatus === 'missed') {
+        // Find max order for this date's tasks to push this missed task to the very bottom
+        const dateTasks = prevTasks.filter((t) => t.date === targetTask.date);
+        const maxOrder = dateTasks.reduce((max, t) => Math.max(max, t.order ?? 0), 0);
+
+        return prevTasks.map((t) => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              status: 'missed',
+              order: maxOrder + 1,
+              completedAt: undefined,
+              updatedAt: new Date().toISOString()
+            };
+          }
+          return t;
+        });
+      } else {
+        return prevTasks.map((t) => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              status: 'pending',
+              completedAt: undefined,
+              updatedAt: new Date().toISOString()
+            };
+          }
+          return t;
+        });
+      }
+    });
+  }, [soundEnabled]);
+
   const deleteTask = useCallback((taskId: string) => {
     sounds.playClick(soundEnabled);
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
@@ -1043,6 +1087,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addTask,
         updateTask,
         toggleTaskComplete,
+        toggleTaskMissed,
         deleteTask,
         moveTaskOrder,
         syncRoutinesForDate,

@@ -23,6 +23,7 @@ export const TaskList: React.FC = () => {
   const { 
     tasks, 
     toggleTaskComplete, 
+    toggleTaskMissed,
     deleteTask, 
     moveTaskOrder,
     openTaskModal, 
@@ -36,9 +37,19 @@ export const TaskList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTaskDetail, setSelectedTaskDetail] = useState<Task | null>(null);
 
+  // Status sort weight: active (0) -> completed (1) -> missed (2)
+  const getStatusWeight = (st: Task['status']) => {
+    if (st === 'pending' || st === 'in_progress') return 0;
+    if (st === 'completed') return 1;
+    if (st === 'missed') return 2;
+    return 0;
+  };
+
   const todayTasks = tasks
     .filter((t) => t.date === selectedDate)
     .sort((a, b) => {
+      const weightDiff = getStatusWeight(a.status) - getStatusWeight(b.status);
+      if (weightDiff !== 0) return weightDiff;
       if (a.order !== undefined && b.order !== undefined) {
         return a.order - b.order;
       }
@@ -50,7 +61,7 @@ export const TaskList: React.FC = () => {
     if (activeCategoryFilter !== 'all' && task.category !== activeCategoryFilter) {
       return false;
     }
-    if (filterTab === 'pending' && task.status === 'completed') return false;
+    if (filterTab === 'pending' && (task.status === 'completed' || task.status === 'missed')) return false;
     if (filterTab === 'completed' && task.status !== 'completed') return false;
     if (filterTab === 'urgent' && task.priority !== 'urgent' && task.priority !== 'high') return false;
     if (searchQuery.trim()) {
@@ -64,13 +75,19 @@ export const TaskList: React.FC = () => {
   const routineTasks = filteredTasks.filter(t => t.isRecurringRoutine);
   const regularTasks = filteredTasks.filter(t => !t.isRecurringRoutine);
 
-  const totalAllTargetMinutes = todayTasks.reduce((acc, t) => acc + (t.targetMinutes || 0), 0);
+  // Active / remaining tasks in plan (excludes completed & missed/crossed items)
+  const activeAllTasks = todayTasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+  const activeRoutineTasks = routineTasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+  const activeRegularTasks = regularTasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+
+  // Automatic deduction: Total plan reflects ONLY pending/active items
+  const totalAllTargetMinutes = activeAllTasks.reduce((acc, t) => acc + (t.targetMinutes || 0), 0);
   const totalAllLoggedMinutes = todayTasks.reduce((acc, t) => acc + (t.loggedMinutes || 0), 0);
 
-  const routineTargetMinutes = routineTasks.reduce((acc, t) => acc + (t.targetMinutes || 0), 0);
+  const routineTargetMinutes = activeRoutineTasks.reduce((acc, t) => acc + (t.targetMinutes || 0), 0);
   const routineLoggedMinutes = routineTasks.reduce((acc, t) => acc + (t.loggedMinutes || 0), 0);
 
-  const regularTargetMinutes = regularTasks.reduce((acc, t) => acc + (t.targetMinutes || 0), 0);
+  const regularTargetMinutes = activeRegularTasks.reduce((acc, t) => acc + (t.targetMinutes || 0), 0);
   const regularLoggedMinutes = regularTasks.reduce((acc, t) => acc + (t.loggedMinutes || 0), 0);
 
   const renderPriorityBadge = (priority: TaskPriority) => {
@@ -105,6 +122,7 @@ export const TaskList: React.FC = () => {
   const renderTaskItem = (task: Task, index: number, list: Task[]) => {
     const categoryInfo = getCategory(task.category);
     const isDone = task.status === 'completed';
+    const isMissed = task.status === 'missed';
     const isFirst = index === 0;
     const isLast = index === list.length - 1;
 
@@ -113,12 +131,14 @@ export const TaskList: React.FC = () => {
         key={task.id}
         onClick={() => setSelectedTaskDetail(task)}
         className={`group relative flex items-center justify-between gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-xl border transition-all duration-200 cursor-pointer ${
-          isDone
+          isMissed
+            ? 'bg-rose-50/30 dark:bg-rose-950/20 border-rose-200/60 dark:border-rose-900/50 opacity-70'
+            : isDone
             ? 'bg-zinc-50/70 dark:bg-zinc-900/40 border-zinc-200/50 dark:border-zinc-800/50 opacity-75'
             : 'bg-white dark:bg-zinc-900 border-zinc-200/80 dark:border-zinc-800/80 hover:border-blue-300 dark:hover:border-blue-800 shadow-2xs hover:shadow-xs'
         }`}
       >
-        {/* Left Section: Reorder Arrows, Checkbox & Info */}
+        {/* Left Section: Reorder Arrows, Complete / Missed Buttons & Info */}
         <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
           
           {/* Up & Down Position Priority Arrows */}
@@ -148,32 +168,63 @@ export const TaskList: React.FC = () => {
             </button>
           </div>
 
-          {/* Custom Animated Checkbox */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleTaskComplete(task.id);
-            }}
-            className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 transition-all cursor-pointer ${
-              isDone
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'border-2 border-zinc-300 dark:border-zinc-600 hover:border-blue-500 dark:hover:border-blue-400 text-transparent hover:text-blue-500'
-            }`}
-            title={isDone ? 'Mark as Incomplete' : 'Complete Task'}
-          >
-            <Check className="w-3.5 h-3.5 stroke-[3]" />
-          </button>
+          {/* Quick Status Buttons: Check (Done) & Cross (Missed) */}
+          <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+            {/* Custom Checkbox (Done) */}
+            <button
+              type="button"
+              onClick={() => toggleTaskComplete(task.id)}
+              className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                isDone
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'border-2 border-zinc-300 dark:border-zinc-600 hover:border-emerald-500 dark:hover:border-emerald-400 text-transparent hover:text-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30'
+              }`}
+              title={isDone ? 'Mark as Incomplete (Restores plan time)' : 'Mark as Done (Deducts plan time)'}
+              aria-label="Mark task as done"
+            >
+              <Check className="w-3.5 h-3.5 stroke-[3]" />
+            </button>
+
+            {/* Cross Button (Missed / Skipped) */}
+            <button
+              type="button"
+              onClick={() => toggleTaskMissed(task.id)}
+              className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                isMissed
+                  ? 'bg-rose-600 text-white shadow-xs border border-rose-600'
+                  : 'border-2 border-zinc-300 dark:border-zinc-600 hover:border-rose-500 dark:hover:border-rose-400 text-transparent hover:text-rose-500 hover:bg-rose-50/50 dark:hover:bg-rose-950/30'
+              }`}
+              title={isMissed ? 'Restore Missed Task (Restores plan time)' : 'Mark as Missed (Deducts plan time & moves to bottom)'}
+              aria-label="Mark task as missed"
+            >
+              <X className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+          </div>
 
           {/* Title and Tags */}
           <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
             <h3 className={`text-sm font-semibold tracking-tight truncate ${
-              isDone 
+              isMissed
+                ? 'line-through text-rose-500/80 dark:text-rose-400/80 font-normal'
+                : isDone 
                 ? 'line-through text-zinc-400 dark:text-zinc-500 font-normal' 
                 : 'text-zinc-900 dark:text-zinc-100'
             }`}>
               {task.title}
             </h3>
-            {renderPriorityBadge(task.priority)}
+
+            {isMissed ? (
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                MISSED
+              </span>
+            ) : isDone ? (
+              <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                DONE
+              </span>
+            ) : (
+              renderPriorityBadge(task.priority)
+            )}
+
             {task.isRecurringRoutine && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 font-medium">
                 <Repeat className="w-2.5 h-2.5" />
@@ -203,7 +254,7 @@ export const TaskList: React.FC = () => {
         <div className="flex items-center gap-1 shrink-0 ml-1.5 sm:ml-2" onClick={(e) => e.stopPropagation()}>
           
           {/* Start Timer on this Task */}
-          {!isDone && (
+          {!isDone && !isMissed && (
             <button
               onClick={() => {
                 startTimer({
@@ -238,7 +289,6 @@ export const TaskList: React.FC = () => {
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
-
         </div>
       </div>
     );
@@ -418,17 +468,21 @@ export const TaskList: React.FC = () => {
               )}
 
               <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[11px] sm:text-xs font-medium ${
-                selectedTaskDetail.status === 'completed'
+                selectedTaskDetail.status === 'missed'
+                  ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                  : selectedTaskDetail.status === 'completed'
                   ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400'
                   : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300'
               }`}>
-                {selectedTaskDetail.status === 'completed' ? 'Completed' : 'Pending'}
+                {selectedTaskDetail.status === 'missed' ? 'Missed / Skipped' : selectedTaskDetail.status === 'completed' ? 'Completed' : 'Pending'}
               </span>
             </div>
 
             {/* Title */}
             <h3 className={`text-lg sm:text-xl font-bold tracking-tight mb-3 break-words ${
-              selectedTaskDetail.status === 'completed' 
+              selectedTaskDetail.status === 'missed'
+                ? 'line-through text-rose-500/80 dark:text-rose-400/80'
+                : selectedTaskDetail.status === 'completed' 
                 ? 'line-through text-zinc-400 dark:text-zinc-500' 
                 : 'text-zinc-900 dark:text-zinc-50 font-display'
             }`}>
@@ -504,9 +558,9 @@ export const TaskList: React.FC = () => {
                 </button>
               </div>
 
-              {/* Primary Actions (Start Timer & Complete Status) */}
-              <div className="flex items-center gap-2 order-1 sm:order-2">
-                {selectedTaskDetail.status !== 'completed' && (
+              {/* Primary Actions (Start Timer, Mark Missed & Complete Status) */}
+              <div className="flex items-center gap-1.5 sm:gap-2 order-1 sm:order-2 flex-wrap sm:flex-nowrap">
+                {selectedTaskDetail.status !== 'completed' && selectedTaskDetail.status !== 'missed' && (
                   <button
                     type="button"
                     onClick={() => {
@@ -519,12 +573,35 @@ export const TaskList: React.FC = () => {
                       });
                       setSelectedTaskDetail(null);
                     }}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors whitespace-nowrap cursor-pointer"
+                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors whitespace-nowrap cursor-pointer"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
                     <span>Start Timer</span>
                   </button>
                 )}
+
+                {/* Mark as Missed Toggle Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    toggleTaskMissed(selectedTaskDetail.id);
+                    setSelectedTaskDetail({
+                      ...selectedTaskDetail,
+                      status: selectedTaskDetail.status === 'missed' ? 'pending' : 'missed'
+                    });
+                  }}
+                  className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
+                    selectedTaskDetail.status === 'missed'
+                      ? 'bg-rose-600 text-white shadow-xs'
+                      : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800'
+                  }`}
+                  title={selectedTaskDetail.status === 'missed' ? 'Restore task to active' : 'Mark task as missed and push to bottom'}
+                >
+                  <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>{selectedTaskDetail.status === 'missed' ? 'Restore' : 'Missed'}</span>
+                </button>
+
+                {/* Complete Button */}
                 <button
                   type="button"
                   onClick={() => {
@@ -534,14 +611,14 @@ export const TaskList: React.FC = () => {
                       status: selectedTaskDetail.status === 'completed' ? 'pending' : 'completed'
                     });
                   }}
-                  className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
+                  className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
                     selectedTaskDetail.status === 'completed'
                       ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-300 dark:hover:bg-zinc-600'
                       : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
                   }`}
                 >
                   <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>{selectedTaskDetail.status === 'completed' ? 'Mark Pending' : 'Mark Completed'}</span>
+                  <span>{selectedTaskDetail.status === 'completed' ? 'Mark Pending' : 'Done'}</span>
                 </button>
               </div>
             </div>

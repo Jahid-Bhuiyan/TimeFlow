@@ -30,6 +30,7 @@ export const RoutinesManager: React.FC = () => {
     openTaskModal, 
     selectedDate, 
     toggleTaskComplete, 
+    toggleTaskMissed,
     deleteTask,
     moveTaskOrder,
     getCategory,
@@ -48,7 +49,8 @@ export const RoutinesManager: React.FC = () => {
     { id: 'evening', label: 'Evening Shutdown', icon: Moon, color: 'text-indigo-500' }
   ] as const;
 
-  const currentRoutineTasks = tasks.filter(t => t.isRecurringRoutine);
+  const currentRoutineTasks = tasks.filter(t => t.isRecurringRoutine && t.date === selectedDate);
+  const activeRoutineTasks = currentRoutineTasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
 
   const handleAddRoutine = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +70,15 @@ export const RoutinesManager: React.FC = () => {
     setRoutineTitle('');
   };
 
-  const totalRoutineMinutes = currentRoutineTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
+  // Active / remaining routine planned time (deducts done and missed)
+  const remainingRoutineMinutes = activeRoutineTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
+
+  const getStatusWeight = (st: Task['status']) => {
+    if (st === 'pending' || st === 'in_progress') return 0;
+    if (st === 'completed') return 1;
+    if (st === 'missed') return 2;
+    return 0;
+  };
 
   return (
     <div className="space-y-6 pb-8 animate-in fade-in duration-300">
@@ -92,7 +102,7 @@ export const RoutinesManager: React.FC = () => {
         {/* Total Time Count Badge */}
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200/60 dark:border-purple-800/60 text-purple-700 dark:text-purple-300 font-semibold text-xs self-start sm:self-auto">
           <Clock className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
-          <span>Total Routine Time: {formatMinutesDuration(totalRoutineMinutes)} / day</span>
+          <span>Active Routine Plan: {formatMinutesDuration(remainingRoutineMinutes)} remaining</span>
         </div>
       </div>
 
@@ -103,13 +113,16 @@ export const RoutinesManager: React.FC = () => {
           const slotTasks = currentRoutineTasks
             .filter(t => t.routineTimeSlot === rSlot.id || (!t.routineTimeSlot && rSlot.id === 'morning'))
             .sort((a, b) => {
+              const weightDiff = getStatusWeight(a.status) - getStatusWeight(b.status);
+              if (weightDiff !== 0) return weightDiff;
               if (a.order !== undefined && b.order !== undefined) {
                 return a.order - b.order;
               }
               return 0;
             });
           const completedCount = slotTasks.filter(t => t.status === 'completed').length;
-          const slotMinutes = slotTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
+          const activeSlotTasks = slotTasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+          const slotRemainingMinutes = activeSlotTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
 
           return (
             <div key={rSlot.id} className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 p-4 shadow-2xs flex flex-col justify-between">
@@ -119,7 +132,7 @@ export const RoutinesManager: React.FC = () => {
                     <Icon className={`w-4 h-4 ${rSlot.color}`} />
                     <div>
                       <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{rSlot.label}</h3>
-                      <span className="text-[10px] text-zinc-400 font-medium">{formatMinutesDuration(slotMinutes)} total</span>
+                      <span className="text-[10px] text-zinc-400 font-medium">{formatMinutesDuration(slotRemainingMinutes)} active plan</span>
                     </div>
                   </div>
                   <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
@@ -137,6 +150,7 @@ export const RoutinesManager: React.FC = () => {
                     slotTasks.map((t, idx) => {
                       const cat = getCategory(t.category);
                       const isDone = t.status === 'completed';
+                      const isMissed = t.status === 'missed';
                       const isFirst = idx === 0;
                       const isLast = idx === slotTasks.length - 1;
 
@@ -145,8 +159,10 @@ export const RoutinesManager: React.FC = () => {
                           key={t.id}
                           onClick={() => setSelectedRoutine(t)}
                           className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 text-xs transition-all cursor-pointer hover:border-purple-300 dark:hover:border-purple-800 hover:shadow-xs ${
-                            isDone 
-                              ? 'bg-zinc-50 dark:bg-zinc-800/30 border-zinc-200/40 text-zinc-400' 
+                            isMissed
+                              ? 'bg-rose-50/30 dark:bg-rose-950/20 border-rose-200/60 text-rose-600/80 opacity-70'
+                              : isDone 
+                              ? 'bg-zinc-50 dark:bg-zinc-800/30 border-zinc-200/40 text-zinc-400 opacity-75' 
                               : 'bg-zinc-50/50 dark:bg-zinc-800/60 border-zinc-200/70 text-zinc-800 dark:text-zinc-200'
                           }`}
                         >
@@ -176,14 +192,47 @@ export const RoutinesManager: React.FC = () => {
                               </button>
                             </div>
 
+                            {/* Done & Missed Quick Buttons */}
+                            <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                onClick={() => toggleTaskComplete(t.id)}
+                                className={`w-4.5 h-4.5 rounded-md flex items-center justify-center transition-all cursor-pointer ${
+                                  isDone
+                                    ? 'bg-emerald-600 text-white shadow-xs'
+                                    : 'border border-zinc-300 dark:border-zinc-600 text-transparent hover:text-emerald-500 hover:border-emerald-500'
+                                }`}
+                                title={isDone ? 'Mark Incomplete' : 'Mark Done (Deducts plan time)'}
+                              >
+                                <Check className="w-3 h-3 stroke-[2.5]" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => toggleTaskMissed(t.id)}
+                                className={`w-4.5 h-4.5 rounded-md flex items-center justify-center transition-all cursor-pointer ${
+                                  isMissed
+                                    ? 'bg-rose-600 text-white border border-rose-600 shadow-xs'
+                                    : 'border border-zinc-300 dark:border-zinc-600 text-transparent hover:text-rose-500 hover:border-rose-500'
+                                }`}
+                                title={isMissed ? 'Restore Missed Routine' : 'Mark Missed (Deducts plan time & moves to bottom)'}
+                              >
+                                <X className="w-3 h-3 stroke-[2.5]" />
+                              </button>
+                            </div>
+
                             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                            <span className={`truncate font-medium ${isDone ? 'line-through' : ''}`}>
+                            <span className={`truncate font-medium ${isMissed ? 'line-through text-rose-500/80' : isDone ? 'line-through text-zinc-400' : ''}`}>
                               {t.title}
                             </span>
+                            {isMissed && (
+                              <span className="px-1 py-0.2 text-[9px] font-bold rounded bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                                MISSED
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                            <span className="text-[10px] font-mono text-zinc-400">{t.loggedMinutes || 0}m / {t.targetMinutes || 15} target</span>
-                            {!isDone && (
+                            <span className="text-[10px] font-mono text-zinc-400">{t.loggedMinutes || 0}m / {t.targetMinutes || 15}m</span>
+                            {!isDone && !isMissed && (
                               <button
                                 onClick={() => startTimer({
                                   taskId: t.id,
@@ -387,7 +436,27 @@ export const RoutinesManager: React.FC = () => {
                 </button>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Missed / Cross Button */}
+                <button
+                  onClick={() => {
+                    toggleTaskMissed(selectedRoutine.id);
+                    setSelectedRoutine({
+                      ...selectedRoutine,
+                      status: selectedRoutine.status === 'missed' ? 'pending' : 'missed'
+                    });
+                  }}
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                    selectedRoutine.status === 'missed'
+                      ? 'bg-rose-600 text-white shadow-xs'
+                      : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800'
+                  }`}
+                  title={selectedRoutine.status === 'missed' ? 'Restore routine' : 'Mark missed (deducts time & pushes to bottom)'}
+                >
+                  <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>{selectedRoutine.status === 'missed' ? 'Restore' : 'Missed'}</span>
+                </button>
+
                 <button
                   onClick={() => {
                     toggleTaskComplete(selectedRoutine.id);
@@ -399,14 +468,14 @@ export const RoutinesManager: React.FC = () => {
                   className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors ${
                     selectedRoutine.status === 'completed'
                       ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300'
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
                   }`}
                 >
                   <Check className="w-3.5 h-3.5" />
                   <span>{selectedRoutine.status === 'completed' ? 'Mark Incomplete' : 'Complete'}</span>
                 </button>
 
-                {selectedRoutine.status !== 'completed' && (
+                {selectedRoutine.status !== 'completed' && selectedRoutine.status !== 'missed' && (
                   <button
                     onClick={() => {
                       const r = selectedRoutine;

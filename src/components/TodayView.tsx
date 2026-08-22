@@ -31,12 +31,17 @@ export const TodayView: React.FC = () => {
   const isToday = selectedDate === todayStr;
 
   const todayTasks = tasks.filter((t) => t.date === selectedDate);
-  const routineTasks = todayTasks.filter((t) => t.isRecurringRoutine);
-  const regularTasks = todayTasks.filter((t) => !t.isRecurringRoutine);
+  // Active/pending tasks that are still in the active plan (excludes completed and missed/crossed items)
+  const activeTasks = todayTasks.filter((t) => t.status === 'pending' || t.status === 'in_progress');
+  const activeRoutineTasks = activeTasks.filter((t) => t.isRecurringRoutine);
+  const activeRegularTasks = activeTasks.filter((t) => !t.isRecurringRoutine);
 
-  const totalAllMinutes = todayTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
-  const totalRoutineMinutes = routineTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
-  const totalRegularMinutes = regularTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
+  const totalAllMinutes = activeTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
+  const totalRoutineMinutes = activeRoutineTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
+  const totalRegularMinutes = activeRegularTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
+
+  const completedCount = todayTasks.filter((t) => t.status === 'completed').length;
+  const missedCount = todayTasks.filter((t) => t.status === 'missed').length;
 
   // Helpers to shift selected date
   const handleShiftDate = (days: number) => {
@@ -95,17 +100,21 @@ export const TodayView: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-3 mt-1.5 text-xs text-zinc-500 dark:text-zinc-400 flex-wrap">
-            {/* Automatic Total Time for all listed tasks and routines */}
+            {/* Automatic Total Time for all active listed tasks and routines */}
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 font-semibold text-[11px]">
               <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400 shrink-0" />
               <span>Total Plan: {formatMinutesDuration(totalAllMinutes)}</span>
-              {totalAllMinutes > 0 && (
+              {totalAllMinutes > 0 ? (
                 <span className="text-blue-500/80 dark:text-blue-400/80 font-normal">
-                  ({routineTasks.length > 0 ? `${formatMinutesDuration(totalRoutineMinutes)} routines` : ''}
-                  {routineTasks.length > 0 && regularTasks.length > 0 ? ' • ' : ''}
-                  {regularTasks.length > 0 ? `${formatMinutesDuration(totalRegularMinutes)} focus tasks` : ''})
+                  ({activeRoutineTasks.length > 0 ? `${formatMinutesDuration(totalRoutineMinutes)} routines` : ''}
+                  {activeRoutineTasks.length > 0 && activeRegularTasks.length > 0 ? ' • ' : ''}
+                  {activeRegularTasks.length > 0 ? `${formatMinutesDuration(totalRegularMinutes)} focus tasks` : ''})
                 </span>
-              )}
+              ) : todayTasks.length > 0 ? (
+                <span className="text-emerald-600 dark:text-emerald-400 font-normal">
+                  (All tasks completed & handled)
+                </span>
+              ) : null}
             </div>
 
             {/* Real-time badge */}
