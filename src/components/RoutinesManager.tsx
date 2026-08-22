@@ -14,10 +14,13 @@ import {
   Zap,
   X,
   Edit3,
-  Trash2
+  Trash2,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ActivityCategory, RoutineSlot, Task } from '../types';
+import { formatMinutesDuration } from '../utils/mockData';
 
 export const RoutinesManager: React.FC = () => {
   const { 
@@ -28,6 +31,7 @@ export const RoutinesManager: React.FC = () => {
     selectedDate, 
     toggleTaskComplete, 
     deleteTask,
+    moveTaskOrder,
     getCategory,
     categoryList
   } = useApp();
@@ -64,18 +68,31 @@ export const RoutinesManager: React.FC = () => {
     setRoutineTitle('');
   };
 
+  const totalRoutineMinutes = currentRoutineTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
+
   return (
     <div className="space-y-6 pb-8 animate-in fade-in duration-300">
       
       {/* Top Header */}
-      <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xs">
-        <div className="flex items-center gap-2">
+      <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
             <Repeat className="w-4 h-4" />
           </div>
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 font-display">
-            Daily Routine Rituals & Habit Stacking
-          </h1>
+          <div>
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 font-display">
+              Daily Routine Rituals & Habit Stacking
+            </h1>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Recurring daily habits that automatically refresh every day
+            </p>
+          </div>
+        </div>
+
+        {/* Total Time Count Badge */}
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200/60 dark:border-purple-800/60 text-purple-700 dark:text-purple-300 font-semibold text-xs self-start sm:self-auto">
+          <Clock className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
+          <span>Total Routine Time: {formatMinutesDuration(totalRoutineMinutes)} / day</span>
         </div>
       </div>
 
@@ -83,8 +100,16 @@ export const RoutinesManager: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {routineSlots.map((rSlot) => {
           const Icon = rSlot.icon;
-          const slotTasks = currentRoutineTasks.filter(t => t.routineTimeSlot === rSlot.id || (!t.routineTimeSlot && rSlot.id === 'morning'));
+          const slotTasks = currentRoutineTasks
+            .filter(t => t.routineTimeSlot === rSlot.id || (!t.routineTimeSlot && rSlot.id === 'morning'))
+            .sort((a, b) => {
+              if (a.order !== undefined && b.order !== undefined) {
+                return a.order - b.order;
+              }
+              return 0;
+            });
           const completedCount = slotTasks.filter(t => t.status === 'completed').length;
+          const slotMinutes = slotTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
 
           return (
             <div key={rSlot.id} className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 p-4 shadow-2xs flex flex-col justify-between">
@@ -92,7 +117,10 @@ export const RoutinesManager: React.FC = () => {
                 <div className="flex items-center justify-between pb-3 mb-3 border-b border-zinc-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
                     <Icon className={`w-4 h-4 ${rSlot.color}`} />
-                    <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{rSlot.label}</h3>
+                    <div>
+                      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{rSlot.label}</h3>
+                      <span className="text-[10px] text-zinc-400 font-medium">{formatMinutesDuration(slotMinutes)} total</span>
+                    </div>
                   </div>
                   <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
                     {completedCount}/{slotTasks.length}
@@ -106,9 +134,12 @@ export const RoutinesManager: React.FC = () => {
                       No routine items in this block
                     </div>
                   ) : (
-                    slotTasks.map((t) => {
+                    slotTasks.map((t, idx) => {
                       const cat = getCategory(t.category);
                       const isDone = t.status === 'completed';
+                      const isFirst = idx === 0;
+                      const isLast = idx === slotTasks.length - 1;
+
                       return (
                         <div
                           key={t.id}
@@ -119,7 +150,32 @@ export const RoutinesManager: React.FC = () => {
                               : 'bg-zinc-50/50 dark:bg-zinc-800/60 border-zinc-200/70 text-zinc-800 dark:text-zinc-200'
                           }`}
                         >
-                          <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            {/* Reorder Arrows */}
+                            <div 
+                              className="flex flex-col items-center justify-center shrink-0 -my-1" 
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                disabled={isFirst}
+                                onClick={() => moveTaskOrder(t.id, 'up')}
+                                className="p-0.5 rounded text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-20 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                                title="Move up in routine slot"
+                              >
+                                <ChevronUp className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isLast}
+                                onClick={() => moveTaskOrder(t.id, 'down')}
+                                className="p-0.5 rounded text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-20 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                                title="Move down in routine slot"
+                              >
+                                <ChevronDown className="w-3 h-3" />
+                              </button>
+                            </div>
+
                             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
                             <span className={`truncate font-medium ${isDone ? 'line-through' : ''}`}>
                               {t.title}
@@ -136,7 +192,7 @@ export const RoutinesManager: React.FC = () => {
                                   mode: 'pomodoro',
                                   targetSeconds: (t.targetMinutes || 15) * 60
                                 })}
-                                className="p-1 rounded-md bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 hover:bg-blue-100"
+                                className="p-1 rounded-md bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 hover:bg-blue-100 cursor-pointer"
                                 title="Start Routine Timer"
                               >
                                 <Play className="w-3 h-3 fill-current" />

@@ -31,7 +31,9 @@ export const Navbar: React.FC = () => {
     tasks,
     getCategory,
     activeNavTab,
-    setActiveNavTab
+    setActiveNavTab,
+    currentTimeString,
+    userTimeZone
   } = useApp();
 
   // Format seconds into MM:SS or HH:MM:SS
@@ -123,6 +125,15 @@ export const Navbar: React.FC = () => {
         {/* Right Actions */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           
+          {/* Live Real-Time Clock Badge */}
+          <div 
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300 font-mono text-xs tabular-nums"
+            title={`Real Local Time (${userTimeZone})`}
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>{currentTimeString}</span>
+          </div>
+
           {/* Quick Add Buttons (desktop only) */}
           <button
             id="btn-quick-task"

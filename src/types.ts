@@ -34,6 +34,8 @@ export interface Task {
   completedAt?: string;
   isRecurringRoutine?: boolean;
   routineTimeSlot?: RoutineSlot;
+  routineTemplateId?: string;
+  order?: number;
   createdAt: string;
   updatedAt: string;
 }

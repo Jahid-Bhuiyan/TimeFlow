@@ -1,11 +1,31 @@
 import { Task, TimeLog, User } from '../types';
 
-export const getTodayDateString = (offsetDays = 0): string => {
-  const d = new Date();
+export const getLocalDateString = (d: Date = new Date(), offsetDays = 0): string => {
+  const target = new Date(d.getTime());
   if (offsetDays !== 0) {
-    d.setDate(d.getDate() + offsetDays);
+    target.setDate(target.getDate() + offsetDays);
   }
-  return d.toISOString().split('T')[0];
+  const year = target.getFullYear();
+  const month = String(target.getMonth() + 1).padStart(2, '0');
+  const day = String(target.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export const getTodayDateString = (offsetDays = 0): string => {
+  return getLocalDateString(new Date(), offsetDays);
+};
+
+export const formatMinutesDuration = (minutes: number): string => {
+  if (!minutes || minutes <= 0) return '0m';
+  const hrs = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  if (hrs > 0 && mins > 0) {
+    return `${hrs}h ${mins}m`;
+  }
+  if (hrs > 0) {
+    return `${hrs}h`;
+  }
+  return `${mins}m`;
 };
 
 export const INITIAL_USER: User = {

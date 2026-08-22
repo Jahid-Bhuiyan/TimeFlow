@@ -223,11 +223,16 @@ export const TaskModal: React.FC = () => {
 
             {/* Target Duration */}
             <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                Target Minutes: <span className="font-mono text-blue-600 dark:text-blue-400">{targetMinutes}m {targetMinutes >= 60 ? `(${Number((targetMinutes / 60).toFixed(1))}h)` : ''}</span>
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                  Target Duration
+                </label>
+                <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">
+                  {targetMinutes}m {targetMinutes >= 60 ? `(${Number((targetMinutes / 60).toFixed(1))}h)` : ''}
+                </span>
+              </div>
               
-              <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+              <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap sm:flex-nowrap">
                 {durationPresets.map((mins) => (
                   <button
                     key={mins}
@@ -236,7 +241,7 @@ export const TaskModal: React.FC = () => {
                       setTargetMinutes(mins);
                       setIsCustomDuration(false);
                     }}
-                    className={`flex-1 min-w-[36px] py-1.5 text-xs font-mono rounded-lg border transition-all shrink-0 cursor-pointer ${
+                    className={`flex-1 min-w-[38px] py-1.5 text-xs font-mono rounded-lg border transition-all text-center cursor-pointer ${
                       targetMinutes === mins && !isCustomDuration
                         ? 'bg-blue-600 text-white font-bold border-blue-600 shadow-xs'
                         : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100'
@@ -247,7 +252,7 @@ export const TaskModal: React.FC = () => {
                 ))}
 
                 {/* Manual Exact Minutes Input */}
-                <div className="relative flex items-center shrink-0 ml-0.5">
+                <div className="relative flex items-center shrink-0 min-w-[68px]">
                   <input
                     type="number"
                     min="1"
@@ -262,7 +267,7 @@ export const TaskModal: React.FC = () => {
                       }
                     }}
                     onFocus={() => setIsCustomDuration(true)}
-                    className={`w-16 px-2 py-1.5 text-center text-xs font-mono rounded-lg border transition-all ${
+                    className={`w-full px-2 py-1.5 text-center text-xs font-mono rounded-lg border transition-all ${
                       isCustomDuration
                         ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-600 dark:text-blue-400 font-bold'
                         : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 placeholder-zinc-400'

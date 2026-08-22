@@ -230,50 +230,106 @@ export const LogModal: React.FC = () => {
           </div>
 
           {/* Duration & Date */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-4">
             
-            {/* Duration */}
+            {/* Duration Section */}
             <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                Duration (Minutes): <span className="font-mono text-blue-600">{durationMinutes}m ({Number((durationMinutes / 60).toFixed(1))}h)</span>
-              </label>
-              <div className="flex items-center gap-1 mb-2">
-                {[15, 30, 45, 60, 90, 120].map((mins) => (
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                  Duration (Minutes)
+                </label>
+                <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">
+                  {durationMinutes}m {durationMinutes >= 60 ? `(${Number((durationMinutes / 60).toFixed(1))}h)` : ''}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap sm:flex-nowrap">
+                {durationPresets.map((mins) => (
                   <button
                     key={mins}
                     type="button"
-                    onClick={() => setDurationMinutes(mins)}
-                    className={`flex-1 py-1 text-xs font-mono rounded-lg border transition-all ${
-                      durationMinutes === mins
-                        ? 'bg-blue-600 text-white font-bold border-blue-600'
+                    onClick={() => {
+                      setDurationMinutes(mins);
+                      setIsCustomDuration(false);
+                    }}
+                    className={`flex-1 min-w-[34px] py-1.5 text-xs font-mono rounded-lg border transition-all text-center cursor-pointer ${
+                      durationMinutes === mins && !isCustomDuration
+                        ? 'bg-blue-600 text-white font-bold border-blue-600 shadow-xs'
                         : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100'
                     }`}
                   >
                     {mins}m
                   </button>
                 ))}
+
+                {/* Manual Exact Duration Input */}
+                <div className="relative flex items-center shrink-0 min-w-[68px]">
+                  <input
+                    type="number"
+                    min="1"
+                    max="720"
+                    placeholder="Exact"
+                    value={isCustomDuration ? durationMinutes : ''}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      setIsCustomDuration(true);
+                      if (!isNaN(val)) {
+                        setDurationMinutes(Math.max(1, Math.min(720, val)));
+                      }
+                    }}
+                    onFocus={() => setIsCustomDuration(true)}
+                    className={`w-full px-2 py-1.5 text-center text-xs font-mono rounded-lg border transition-all ${
+                      isCustomDuration
+                        ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-600 dark:text-blue-400 font-bold'
+                        : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 placeholder-zinc-400'
+                    } focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                    title="Input exact minutes manually"
+                  />
+                  <span className="text-[10px] text-zinc-400 ml-1 font-mono">m</span>
+                </div>
               </div>
-              <input
-                type="number"
-                min="1"
-                max="720"
-                value={durationMinutes}
-                onChange={(e) => setDurationMinutes(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-full px-3 py-1.5 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono"
-              />
             </div>
 
-            {/* Date */}
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                Date of Activity
-              </label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
-              />
+            {/* Date & Exact Time Range */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Date */}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
+                />
+              </div>
+
+              {/* Start Time */}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                  Start Time
+                </label>
+                <input
+                  type="time"
+                  value={startTimeOfDay}
+                  onChange={(e) => handleStartTimeChange(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
+                />
+              </div>
+
+              {/* End Time */}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                  End Time
+                </label>
+                <input
+                  type="time"
+                  value={endTimeOfDay}
+                  onChange={(e) => handleEndTimeChange(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
+                />
+              </div>
             </div>
 
           </div>

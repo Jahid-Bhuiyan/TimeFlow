@@ -68,18 +68,18 @@ export const QuickLogBar: React.FC = () => {
       <form onSubmit={handleSubmit} className="space-y-3">
         
         {/* Main Input Row */}
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex flex-col lg:flex-row gap-2">
           <input
             type="text"
             id="quick-log-title-input"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="What activity did you just finish?"
-            className="flex-1 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/70 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            className="flex-1 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/70 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 min-w-0"
           />
 
           {/* Quick Duration Buttons & Custom Input */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
             {durationPresets.map((mins) => (
               <button
                 key={mins}
@@ -88,7 +88,7 @@ export const QuickLogBar: React.FC = () => {
                   setDurationMinutes(mins);
                   setIsCustomDuration(false);
                 }}
-                className={`px-2.5 py-2 rounded-lg text-xs font-mono font-medium transition-all shrink-0 cursor-pointer ${
+                className={`flex-1 sm:flex-initial px-2 sm:px-2.5 py-2 rounded-lg text-xs font-mono font-medium transition-all shrink-0 text-center cursor-pointer ${
                   durationMinutes === mins && !isCustomDuration
                     ? 'bg-blue-600 text-white font-bold shadow-xs'
                     : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
@@ -98,7 +98,7 @@ export const QuickLogBar: React.FC = () => {
               </button>
             ))}
 
-            {/* Manual Duration Input Box */}
+            {/* Manual Exact Duration Input Box */}
             <div className="relative flex items-center shrink-0">
               <input
                 type="number"
@@ -114,7 +114,7 @@ export const QuickLogBar: React.FC = () => {
                   }
                 }}
                 onFocus={() => setIsCustomDuration(true)}
-                className={`w-16 px-2 py-2 text-center text-xs font-mono rounded-lg border transition-all ${
+                className={`w-14 sm:w-16 px-1.5 sm:px-2 py-2 text-center text-xs font-mono rounded-lg border transition-all ${
                   isCustomDuration
                     ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-600 dark:text-blue-400 font-bold'
                     : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 placeholder-zinc-400'
@@ -128,7 +128,7 @@ export const QuickLogBar: React.FC = () => {
           <button
             type="submit"
             disabled={!title.trim()}
-            className="px-4 py-2.5 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 text-xs font-semibold hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 text-xs font-semibold hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Log Time</span>

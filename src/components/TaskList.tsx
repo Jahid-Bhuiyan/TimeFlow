@@ -11,16 +11,20 @@ import {
   X,
   Tag,
   AlertCircle,
-  Calendar
+  Calendar,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Task, TaskPriority } from '../types';
+import { formatMinutesDuration } from '../utils/mockData';
 
 export const TaskList: React.FC = () => {
   const { 
     tasks, 
     toggleTaskComplete, 
     deleteTask, 
+    moveTaskOrder,
     openTaskModal, 
     startTimer, 
     selectedDate,
@@ -32,7 +36,14 @@ export const TaskList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTaskDetail, setSelectedTaskDetail] = useState<Task | null>(null);
 
-  const todayTasks = tasks.filter((t) => t.date === selectedDate);
+  const todayTasks = tasks
+    .filter((t) => t.date === selectedDate)
+    .sort((a, b) => {
+      if (a.order !== undefined && b.order !== undefined) {
+        return a.order - b.order;
+      }
+      return 0;
+    });
 
   // Apply filters
   const filteredTasks = todayTasks.filter((task) => {
@@ -52,6 +63,15 @@ export const TaskList: React.FC = () => {
   // Separate recurring routine items from one-off tasks for cleaner presentation
   const routineTasks = filteredTasks.filter(t => t.isRecurringRoutine);
   const regularTasks = filteredTasks.filter(t => !t.isRecurringRoutine);
+
+  const totalAllTargetMinutes = todayTasks.reduce((acc, t) => acc + (t.targetMinutes || 0), 0);
+  const totalAllLoggedMinutes = todayTasks.reduce((acc, t) => acc + (t.loggedMinutes || 0), 0);
+
+  const routineTargetMinutes = routineTasks.reduce((acc, t) => acc + (t.targetMinutes || 0), 0);
+  const routineLoggedMinutes = routineTasks.reduce((acc, t) => acc + (t.loggedMinutes || 0), 0);
+
+  const regularTargetMinutes = regularTasks.reduce((acc, t) => acc + (t.targetMinutes || 0), 0);
+  const regularLoggedMinutes = regularTasks.reduce((acc, t) => acc + (t.loggedMinutes || 0), 0);
 
   const renderPriorityBadge = (priority: TaskPriority) => {
     switch (priority) {
@@ -82,23 +102,52 @@ export const TaskList: React.FC = () => {
     }
   };
 
-  const renderTaskItem = (task: Task) => {
+  const renderTaskItem = (task: Task, index: number, list: Task[]) => {
     const categoryInfo = getCategory(task.category);
     const isDone = task.status === 'completed';
+    const isFirst = index === 0;
+    const isLast = index === list.length - 1;
 
     return (
       <div
         key={task.id}
         onClick={() => setSelectedTaskDetail(task)}
-        className={`group relative flex items-center justify-between gap-3 p-3.5 rounded-xl border transition-all duration-200 cursor-pointer ${
+        className={`group relative flex items-center justify-between gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-xl border transition-all duration-200 cursor-pointer ${
           isDone
             ? 'bg-zinc-50/70 dark:bg-zinc-900/40 border-zinc-200/50 dark:border-zinc-800/50 opacity-75'
             : 'bg-white dark:bg-zinc-900 border-zinc-200/80 dark:border-zinc-800/80 hover:border-blue-300 dark:hover:border-blue-800 shadow-2xs hover:shadow-xs'
         }`}
       >
-        {/* Left Checkbox and Content (No description here - details kept in main card modal) */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        {/* Left Section: Reorder Arrows, Checkbox & Info */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
           
+          {/* Up & Down Position Priority Arrows */}
+          <div 
+            className="flex flex-col items-center justify-center shrink-0 -my-1" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              disabled={isFirst}
+              onClick={() => moveTaskOrder(task.id, 'up')}
+              className="p-0.5 rounded text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-zinc-400 transition-colors cursor-pointer"
+              title="Move up in priority"
+              aria-label="Move task up"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              disabled={isLast}
+              onClick={() => moveTaskOrder(task.id, 'down')}
+              className="p-0.5 rounded text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-zinc-400 transition-colors cursor-pointer"
+              title="Move down in priority"
+              aria-label="Move task down"
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           {/* Custom Animated Checkbox */}
           <button
             onClick={(e) => {
@@ -151,7 +200,7 @@ export const TaskList: React.FC = () => {
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1 shrink-0 ml-1.5 sm:ml-2" onClick={(e) => e.stopPropagation()}>
           
           {/* Start Timer on this Task */}
           {!isDone && (
@@ -201,13 +250,24 @@ export const TaskList: React.FC = () => {
       {/* Header & Filter Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xs">
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-            <span>Today&apos;s Focus & Tasks</span>
+            <span>Today&apos;s Tasks & Routines</span>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
               {todayTasks.length}
             </span>
           </h2>
+
+          {/* Automatic Total Time count badge */}
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700/60 text-zinc-700 dark:text-zinc-200 font-semibold text-xs tabular-nums">
+            <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+            <span>Total: {formatMinutesDuration(totalAllTargetMinutes)}</span>
+            {totalAllLoggedMinutes > 0 && (
+              <span className="text-zinc-400 dark:text-zinc-500 font-normal">
+                ({formatMinutesDuration(totalAllLoggedMinutes)} logged)
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Filter Pills */}
@@ -286,13 +346,16 @@ export const TaskList: React.FC = () => {
           {routineTasks.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between px-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 flex items-center gap-1.5">
-                  <Repeat className="w-3 h-3 text-purple-500" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                  <Repeat className="w-3.5 h-3.5 text-purple-500" />
                   Daily Routine Rituals ({routineTasks.filter(t => t.status === 'completed').length}/{routineTasks.length})
+                </span>
+                <span className="text-[11px] font-semibold font-mono text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-md border border-purple-200/50 dark:border-purple-800/50">
+                  Total: {formatMinutesDuration(routineTargetMinutes)}
                 </span>
               </div>
               <div className="space-y-2">
-                {routineTasks.map(renderTaskItem)}
+                {routineTasks.map((t, idx) => renderTaskItem(t, idx, routineTasks))}
               </div>
             </div>
           )}
@@ -300,15 +363,17 @@ export const TaskList: React.FC = () => {
           {/* Regular Tasks */}
           {regularTasks.length > 0 && (
             <div className="space-y-2">
-              {routineTasks.length > 0 && (
-                <div className="flex items-center justify-between px-1 pt-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                    Scheduled Focus Tasks ({regularTasks.filter(t => t.status === 'completed').length}/{regularTasks.length})
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center justify-between px-1 pt-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-blue-500" />
+                  Scheduled Focus Tasks ({regularTasks.filter(t => t.status === 'completed').length}/{regularTasks.length})
+                </span>
+                <span className="text-[11px] font-semibold font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-md border border-blue-200/50 dark:border-blue-800/50">
+                  Total: {formatMinutesDuration(regularTargetMinutes)}
+                </span>
+              </div>
               <div className="space-y-2">
-                {regularTasks.map(renderTaskItem)}
+                {regularTasks.map((t, idx) => renderTaskItem(t, idx, regularTasks))}
               </div>
             </div>
           )}

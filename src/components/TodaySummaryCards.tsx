@@ -9,6 +9,7 @@ import {
   Target
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { formatMinutesDuration } from '../utils/mockData';
 
 export const TodaySummaryCards: React.FC = () => {
   const { user, tasks, timeLogs, selectedDate } = useApp();
@@ -39,6 +40,8 @@ export const TodaySummaryCards: React.FC = () => {
 
   const completedTasks = todayTasks.filter((t) => t.status === 'completed').length;
   const totalTasks = todayTasks.length;
+  const totalTaskMinutes = todayTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
+  const completedTaskMinutes = todayTasks.filter(t => t.status === 'completed').reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -122,7 +125,7 @@ export const TodaySummaryCards: React.FC = () => {
       <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 p-4 shadow-2xs flex flex-col justify-between">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-            Tasks Completed
+            Tasks & Routines
           </span>
           <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
             <CheckCircle2 className="w-4 h-4" />
@@ -133,9 +136,14 @@ export const TodaySummaryCards: React.FC = () => {
             {completedTasks}
             <span className="text-sm font-normal text-zinc-400 ml-1">/ {totalTasks}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
-            <Flame className="w-3.5 h-3.5 fill-current" />
-            <span>5-day routine streak</span>
+          <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+            <span className="font-medium text-indigo-600 dark:text-indigo-400">
+              Total: {formatMinutesDuration(totalTaskMinutes)}
+            </span>
+            <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
+              <Flame className="w-3 h-3 fill-current" />
+              <span>5d streak</span>
+            </div>
           </div>
         </div>
       </div>

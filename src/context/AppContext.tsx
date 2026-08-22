@@ -14,6 +14,15 @@ interface AppContextType {
   activeNavTab: 'today' | 'analytics' | 'history' | 'routines' | 'profile';
   theme: 'light' | 'dark';
   soundEnabled: boolean;
+
+  // Real-time clock & user date info
+  realTime: Date;
+  currentDateString: string;
+  currentTimeString: string;
+  formattedRealTime: string;
+  formattedRealDate: string;
+  userTimeZone: string;
+  userTimeZoneOffset: string;
   
   // Categories State
   categories: Record<string, CategoryInfo>;
@@ -59,6 +68,8 @@ interface AppContextType {
   updateTask: (taskId: string, updates: Partial<Task>) => void;
   toggleTaskComplete: (taskId: string) => void;
   deleteTask: (taskId: string) => void;
+  moveTaskOrder: (taskId: string, direction: 'up' | 'down') => void;
+  syncRoutinesForDate: (targetDate: string) => void;
   
   // Log Actions
   addTimeLog: (log: Omit<TimeLog, 'id' | 'userId'>) => TimeLog;
@@ -194,6 +205,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   });
 
+  // Real-time Live Clock & Date State
+  const [realTime, setRealTime] = useState<Date>(() => new Date());
+  const currentDateString = useMemo(() => getTodayDateString(), [realTime]);
+
+  const currentTimeString = useMemo(() => {
+    return realTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }, [realTime]);
+
+  const formattedRealTime = useMemo(() => {
+    return realTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }, [realTime]);
+
+  const formattedRealDate = useMemo(() => {
+    return realTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+  }, [realTime]);
+
+  const userTimeZone = useMemo(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local';
+    } catch {
+      return 'Local';
+    }
+  }, []);
+
+  const userTimeZoneOffset = useMemo(() => {
+    try {
+      const parts = new Date().toLocaleTimeString('en-us', { timeZoneName: 'short' }).split(' ');
+      return parts[parts.length - 1] || '';
+    } catch {
+      return '';
+    }
+  }, []);
+
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString());
   const [activeNavTab, setActiveNavTab] = useState<'today' | 'analytics' | 'history' | 'routines' | 'profile'>('today');
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<ActivityCategory | 'all'>('all');
@@ -204,6 +248,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingLog, setEditingLog] = useState<TimeLog | null>(null);
+
+  // Live real-time ticker & auto midnight rollover
+  const prevDateRef = useRef<string>(getTodayDateString());
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      setRealTime(now);
+
+      const newDateStr = getTodayDateString();
+      if (newDateStr !== prevDateRef.current) {
+        // Midnight crossed in user's real local time!
+        const oldDate = prevDateRef.current;
+        prevDateRef.current = newDateStr;
+        
+        // Auto-switch selectedDate to the new real date if user was viewing previous day's live dashboard
+        setSelectedDate((cur) => (cur === oldDate ? newDateStr : cur));
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Sync theme class to document
   useEffect(() => {
@@ -501,14 +566,89 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [categories, soundEnabled, user?.id]);
 
   // Task Actions
+  const syncRoutinesForDate = useCallback((targetDate: string) => {
+    if (!targetDate) return;
+    setTasks((prevTasks) => {
+      // Gather all distinct recurring routine templates
+      const routineTemplates = new Map<string, Task>();
+
+      prevTasks.forEach((t) => {
+        if (t.isRecurringRoutine) {
+          const key = t.routineTemplateId || `${t.title.toLowerCase().trim()}__${t.routineTimeSlot || 'morning'}`;
+          if (!routineTemplates.has(key) || (t.updatedAt && routineTemplates.get(key)!.updatedAt < t.updatedAt)) {
+            routineTemplates.set(key, t);
+          }
+        }
+      });
+
+      if (routineTemplates.size === 0) return prevTasks;
+
+      // Check tasks already present on targetDate
+      const targetDateTasks = prevTasks.filter((t) => t.date === targetDate);
+      const existingKeys = new Set<string>();
+      targetDateTasks.forEach((t) => {
+        if (t.isRecurringRoutine) {
+          const key = t.routineTemplateId || `${t.title.toLowerCase().trim()}__${t.routineTimeSlot || 'morning'}`;
+          existingKeys.add(key);
+        }
+      });
+
+      const newTasksToAdd: Task[] = [];
+      let maxOrder = targetDateTasks.reduce((max, t) => Math.max(max, t.order ?? 0), 0);
+
+      routineTemplates.forEach((tmpl, key) => {
+        if (!existingKeys.has(key)) {
+          maxOrder++;
+          newTasksToAdd.push({
+            id: `task_routine_${targetDate}_${Math.random().toString(36).substring(2, 9)}`,
+            userId: user?.id || 'guest',
+            title: tmpl.title,
+            description: tmpl.description || '',
+            category: tmpl.category,
+            priority: tmpl.priority || 'medium',
+            status: 'pending', // Starts fresh for the new date
+            date: targetDate,
+            targetMinutes: tmpl.targetMinutes || 15,
+            loggedMinutes: 0,
+            isRecurringRoutine: true,
+            routineTimeSlot: tmpl.routineTimeSlot || 'morning',
+            routineTemplateId: tmpl.routineTemplateId || key,
+            order: tmpl.order !== undefined ? tmpl.order : maxOrder,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+        }
+      });
+
+      if (newTasksToAdd.length === 0) return prevTasks;
+      return [...prevTasks, ...newTasksToAdd];
+    });
+  }, [user?.id]);
+
+  // Automatically keep all daily recurring routines on selectedDate and today
+  useEffect(() => {
+    syncRoutinesForDate(selectedDate);
+    const todayStr = getTodayDateString();
+    if (selectedDate !== todayStr) {
+      syncRoutinesForDate(todayStr);
+    }
+  }, [selectedDate, syncRoutinesForDate]);
+
   const addTask = useCallback((taskData: Omit<Task, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'loggedMinutes'> & { loggedMinutes?: number }): Task => {
     sounds.playClick(soundEnabled);
     const nowIso = new Date().toISOString();
+    const isRoutine = !!taskData.isRecurringRoutine;
+    const routineTemplateId = isRoutine 
+      ? (taskData.routineTemplateId || `routine_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`)
+      : undefined;
+
     const newTask: Task = {
       ...taskData,
       id: `task_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       userId: user?.id || 'guest',
       loggedMinutes: taskData.loggedMinutes || 0,
+      isRecurringRoutine: isRoutine,
+      routineTemplateId,
       createdAt: nowIso,
       updatedAt: nowIso
     };
@@ -520,7 +660,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateTask = useCallback((taskId: string, updates: Partial<Task>) => {
     sounds.playClick(soundEnabled);
     setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t))
+      prev.map((t) => {
+        if (t.id === taskId) {
+          const isRoutine = updates.isRecurringRoutine !== undefined ? updates.isRecurringRoutine : t.isRecurringRoutine;
+          const routineTemplateId = isRoutine ? (t.routineTemplateId || `routine_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`) : undefined;
+          return { ...t, ...updates, isRecurringRoutine: isRoutine, routineTemplateId, updatedAt: new Date().toISOString() };
+        }
+        return t;
+      })
     );
   }, [soundEnabled]);
 
@@ -557,6 +704,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteTask = useCallback((taskId: string) => {
     sounds.playClick(soundEnabled);
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
+  }, [soundEnabled]);
+
+  // Reorder task priority and position within the list using Up/Down arrows
+  const moveTaskOrder = useCallback((taskId: string, direction: 'up' | 'down') => {
+    sounds.playClick(soundEnabled);
+    setTasks((prevTasks) => {
+      const targetTask = prevTasks.find((t) => t.id === taskId);
+      if (!targetTask) return prevTasks;
+
+      // Get all tasks for that date
+      const dateTasks = prevTasks.filter((t) => t.date === targetTask.date);
+      if (dateTasks.length <= 1) return prevTasks;
+
+      // Sort by existing order if present, or by their natural index
+      const sortedDateTasks = [...dateTasks].sort((a, b) => {
+        if (a.order !== undefined && b.order !== undefined) {
+          return a.order - b.order;
+        }
+        return 0;
+      });
+
+      const currentIndex = sortedDateTasks.findIndex((t) => t.id === taskId);
+      if (currentIndex === -1) return prevTasks;
+
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= sortedDateTasks.length) return prevTasks;
+
+      // Swap the two items
+      const temp = sortedDateTasks[currentIndex];
+      sortedDateTasks[currentIndex] = sortedDateTasks[targetIndex];
+      sortedDateTasks[targetIndex] = temp;
+
+      // Reassign clean continuous order values
+      const orderMap = new Map<string, number>();
+      sortedDateTasks.forEach((t, idx) => {
+        orderMap.set(t.id, idx);
+      });
+
+      return prevTasks.map((t) => {
+        if (orderMap.has(t.id)) {
+          return {
+            ...t,
+            order: orderMap.get(t.id)!,
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return t;
+      });
+    });
   }, [soundEnabled]);
 
   // Time Log Actions
@@ -806,6 +1002,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeNavTab,
         theme,
         soundEnabled,
+        realTime,
+        currentDateString,
+        currentTimeString,
+        formattedRealTime,
+        formattedRealDate,
+        userTimeZone,
+        userTimeZoneOffset,
         categories,
         categoryList,
         isCategoryModalOpen,
@@ -841,6 +1044,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateTask,
         toggleTaskComplete,
         deleteTask,
+        moveTaskOrder,
+        syncRoutinesForDate,
         addTimeLog,
         updateTimeLog,
         deleteTimeLog,

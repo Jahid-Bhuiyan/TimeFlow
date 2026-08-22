@@ -58,3 +58,15 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(156, 163, 175, 0.7);
 }
+
+/* Hide number input spin buttons / arrow icons */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
