@@ -8,9 +8,11 @@ import {
   Plus, 
   Play, 
   Pause, 
-  Square,
-  Sparkles,
-  Flame
+  Square, 
+  Sparkles, 
+  Flame,
+  Undo2,
+  Redo2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -25,15 +27,21 @@ export const Navbar: React.FC = () => {
     toggleTheme, 
     soundEnabled, 
     toggleSound, 
-    openTaskModal,
-    openLogModal,
-    setIsAuthModalOpen,
-    tasks,
-    getCategory,
-    activeNavTab,
-    setActiveNavTab,
-    currentTimeString,
-    userTimeZone
+    openTaskModal, 
+    openLogModal, 
+    setIsAuthModalOpen, 
+    tasks, 
+    getCategory, 
+    activeNavTab, 
+    setActiveNavTab, 
+    currentTimeString, 
+    userTimeZone,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
+    undoCount,
+    redoCount
   } = useApp();
 
   // Format seconds into MM:SS or HH:MM:SS
@@ -152,6 +160,31 @@ export const Navbar: React.FC = () => {
             <Clock className="w-3.5 h-3.5" />
             <span>Log Activity</span>
           </button>
+
+          {/* Quick Undo / Redo in Navbar */}
+          <div className="hidden sm:inline-flex items-center rounded-lg bg-zinc-100 dark:bg-zinc-800/80 p-0.5 border border-zinc-200/60 dark:border-zinc-700/50">
+            <button
+              type="button"
+              disabled={!canUndo}
+              onClick={undo}
+              className="p-1.5 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors cursor-pointer"
+              title="Undo recent change (Ctrl+Z / ⌘Z)"
+              aria-label="Undo"
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+            </button>
+            <div className="w-[1px] h-3.5 bg-zinc-200 dark:bg-zinc-700" />
+            <button
+              type="button"
+              disabled={!canRedo}
+              onClick={redo}
+              className="p-1.5 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors cursor-pointer"
+              title="Redo change (Ctrl+Y / ⌘⇧Z)"
+              aria-label="Redo"
+            >
+              <Redo2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
           {/* Sound Toggle */}
           <button

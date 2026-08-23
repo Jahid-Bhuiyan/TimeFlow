@@ -71,6 +71,17 @@ interface AppContextType {
   deleteTask: (taskId: string) => void;
   moveTaskOrder: (taskId: string, direction: 'up' | 'down') => void;
   syncRoutinesForDate: (targetDate: string) => void;
+  clearTasksForDate: (date: string, mode?: 'all' | 'completed') => void;
+
+  // History Undo & Redo
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
+  undoCount: number;
+  redoCount: number;
+  lastActionMessage: string | null;
+  clearLastActionMessage: () => void;
   
   // Log Actions
   addTimeLog: (log: Omit<TimeLog, 'id' | 'userId'>) => TimeLog;
@@ -272,6 +283,129 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingLog, setEditingLog] = useState<TimeLog | null>(null);
+
+  // History & Undo / Redo State
+  interface HistorySnapshot {
+    tasks: Task[];
+    terminatedRoutines: Record<string, string>;
+    description?: string;
+  }
+  const [historyPast, setHistoryPast] = useState<HistorySnapshot[]>([]);
+  const [historyFuture, setHistoryFuture] = useState<HistorySnapshot[]>([]);
+  const [lastActionMessage, setLastActionMessage] = useState<string | null>(null);
+
+  const tasksRef = useRef<Task[]>(tasks);
+  tasksRef.current = tasks;
+
+  const terminatedRoutinesRef = useRef<Record<string, string>>(terminatedRoutines);
+  terminatedRoutinesRef.current = terminatedRoutines;
+
+  const recordHistory = useCallback((description?: string) => {
+    setHistoryPast((prev) => {
+      const next = [
+        ...prev,
+        {
+          tasks: tasksRef.current,
+          terminatedRoutines: { ...terminatedRoutinesRef.current },
+          description
+        }
+      ];
+      if (next.length > 50) return next.slice(next.length - 50);
+      return next;
+    });
+    setHistoryFuture([]);
+  }, []);
+
+  const undo = useCallback(() => {
+    setHistoryPast((past) => {
+      if (past.length === 0) return past;
+      const previousSnapshot = past[past.length - 1];
+      const newPast = past.slice(0, past.length - 1);
+
+      setHistoryFuture((future) => [
+        {
+          tasks: tasksRef.current,
+          terminatedRoutines: { ...terminatedRoutinesRef.current },
+          description: 'Current Action'
+        },
+        ...future
+      ]);
+
+      setTasks(previousSnapshot.tasks);
+      setTerminatedRoutines(previousSnapshot.terminatedRoutines);
+      setLastActionMessage(previousSnapshot.description ? `Undone: ${previousSnapshot.description}` : 'Undone recent change');
+      sounds.playClick(soundEnabled);
+
+      return newPast;
+    });
+  }, [soundEnabled]);
+
+  const redo = useCallback(() => {
+    setHistoryFuture((future) => {
+      if (future.length === 0) return future;
+      const nextSnapshot = future[0];
+      const newFuture = future.slice(1);
+
+      setHistoryPast((past) => [
+        ...past,
+        {
+          tasks: tasksRef.current,
+          terminatedRoutines: { ...terminatedRoutinesRef.current },
+          description: 'Previous Action'
+        }
+      ]);
+
+      setTasks(nextSnapshot.tasks);
+      setTerminatedRoutines(nextSnapshot.terminatedRoutines);
+      setLastActionMessage(nextSnapshot.description ? `Redone: ${nextSnapshot.description}` : 'Redone change');
+      sounds.playClick(soundEnabled);
+
+      return newFuture;
+    });
+  }, [soundEnabled]);
+
+  const clearLastActionMessage = useCallback(() => {
+    setLastActionMessage(null);
+  }, []);
+
+  // Auto-clear notification toast after 3.5 seconds
+  useEffect(() => {
+    if (!lastActionMessage) return;
+    const timer = setTimeout(() => {
+      setLastActionMessage(null);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [lastActionMessage]);
+
+  // Global Keyboard Shortcuts: Ctrl+Z / Cmd+Z for Undo, Ctrl+Y / Cmd+Shift+Z for Redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isEditingText = target && (
+        target.tagName === 'INPUT' || 
+        target.tagName === 'TEXTAREA' || 
+        target.isContentEditable
+      );
+      if (isEditingText) return;
+
+      // Undo: Ctrl+Z or Cmd+Z (without Shift)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      // Redo: Ctrl+Y or Cmd+Shift+Z or Cmd+Y
+      else if (
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')
+      ) {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
 
   // Live real-time ticker & auto midnight rollover
   const prevDateRef = useRef<string>(getTodayDateString());
@@ -726,6 +860,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addTask = useCallback((taskData: Omit<Task, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'loggedMinutes'> & { loggedMinutes?: number }): Task => {
     sounds.playClick(soundEnabled);
+    recordHistory(`Added task "${taskData.title}"`);
     const nowIso = new Date().toISOString();
     const isRoutine = !!taskData.isRecurringRoutine;
     const taskDate = taskData.date || selectedDate || getTodayDateString();
@@ -763,10 +898,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setTasks((prev) => [newTask, ...prev]);
     return newTask;
-  }, [selectedDate, soundEnabled, user?.id]);
+  }, [recordHistory, selectedDate, soundEnabled, user?.id]);
 
   const updateTask = useCallback((taskId: string, updates: Partial<Task>) => {
     sounds.playClick(soundEnabled);
+    recordHistory('Updated task details');
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === taskId) {
@@ -785,9 +921,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return t;
       })
     );
-  }, [soundEnabled]);
+  }, [recordHistory, soundEnabled]);
 
   const toggleTaskComplete = useCallback((taskId: string) => {
+    recordHistory('Toggled task completion');
     setTasks((prev) => {
       let isNowCompleted = false;
       const updated = prev.map((t) => {
@@ -815,11 +952,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       return updated;
     });
-  }, [soundEnabled]);
+  }, [recordHistory, soundEnabled]);
 
   // Toggle task as missed/crossed out - auto-deducts from plan time & pushes to bottom of list
   const toggleTaskMissed = useCallback((taskId: string) => {
     sounds.playClick(soundEnabled);
+    recordHistory('Toggled task status');
     setTasks((prevTasks) => {
       const targetTask = prevTasks.find((t) => t.id === taskId);
       if (!targetTask) return prevTasks;
@@ -858,10 +996,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       }
     });
-  }, [soundEnabled]);
+  }, [recordHistory, soundEnabled]);
 
   const deleteTask = useCallback((taskId: string) => {
     sounds.playClick(soundEnabled);
+    recordHistory('Deleted task');
     setTasks((prev) => {
       const targetTask = prev.find((t) => t.id === taskId);
       if (!targetTask) return prev.filter((t) => t.id !== taskId);
@@ -902,11 +1041,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Non-recurring task: delete single task
       return prev.filter((t) => t.id !== taskId);
     });
-  }, [soundEnabled]);
+  }, [recordHistory, soundEnabled]);
 
   // Reorder task priority and position within the list using Up/Down arrows
   const moveTaskOrder = useCallback((taskId: string, direction: 'up' | 'down') => {
     sounds.playClick(soundEnabled);
+    recordHistory('Reordered task priority');
     setTasks((prevTasks) => {
       const targetTask = prevTasks.find((t) => t.id === taskId);
       if (!targetTask) return prevTasks;
@@ -994,7 +1134,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return t;
       });
     });
-  }, [soundEnabled]);
+  }, [recordHistory, soundEnabled]);
+
+  // Clear all tasks (or completed only) for a specific date with full Undo support
+  const clearTasksForDate = useCallback((targetDate: string, mode: 'all' | 'completed' = 'all') => {
+    sounds.playClick(soundEnabled);
+    const todayStr = getTodayDateString();
+    const tomorrowStr = getTodayDateString(1);
+    const dayLabel = targetDate === todayStr ? 'today' : targetDate === tomorrowStr ? 'tomorrow' : targetDate;
+    
+    recordHistory(mode === 'completed' ? `Cleared completed tasks for ${dayLabel}` : `Cleared all tasks for ${dayLabel}`);
+
+    setTasks((prev) => {
+      return prev.filter((t) => {
+        if (t.date !== targetDate) return true;
+        if (mode === 'completed') {
+          return t.status !== 'completed';
+        }
+        return false;
+      });
+    });
+  }, [recordHistory, soundEnabled]);
 
   // Time Log Actions
   const addTimeLog = useCallback((logData: Omit<TimeLog, 'id' | 'userId'>): TimeLog => {
@@ -1289,6 +1449,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteTask,
         moveTaskOrder,
         syncRoutinesForDate,
+        clearTasksForDate,
+        canUndo: historyPast.length > 0,
+        canRedo: historyFuture.length > 0,
+        undo,
+        redo,
+        undoCount: historyPast.length,
+        redoCount: historyFuture.length,
+        lastActionMessage,
+        clearLastActionMessage,
         addTimeLog,
         updateTimeLog,
         deleteTimeLog,

@@ -13,10 +13,15 @@ import {
   AlertCircle,
   Calendar,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Undo2,
+  Redo2,
+  Sparkles,
+  RotateCcw
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Task, TaskPriority } from '../types';
+import { getTodayDateString } from '../utils/mockData';
 
 export const TaskList: React.FC = () => {
   const { 
@@ -30,10 +35,33 @@ export const TaskList: React.FC = () => {
     selectedDate,
     activeCategoryFilter,
     getCategory,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
+    undoCount,
+    redoCount,
+    lastActionMessage,
+    clearLastActionMessage,
+    clearTasksForDate
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTaskDetail, setSelectedTaskDetail] = useState<Task | null>(null);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+
+  const todayStr = getTodayDateString();
+  const tomorrowStr = getTodayDateString(1);
+  const isToday = selectedDate === todayStr;
+  const isTomorrow = selectedDate === tomorrowStr;
+
+  const dateTitle = isToday 
+    ? "Today's Tasks & Routines" 
+    : isTomorrow 
+    ? "Tomorrow's Tasks & Routines" 
+    : `${selectedDate} Tasks & Routines`;
+
+  const dateSubLabel = isToday ? "Today" : isTomorrow ? "Tomorrow" : selectedDate;
 
   // Status sort weight: active (0) -> completed (1) -> missed (2)
   const getStatusWeight = (st: Task['status']) => {
@@ -53,6 +81,8 @@ export const TaskList: React.FC = () => {
       }
       return 0;
     });
+
+  const completedCount = todayTasks.filter((t) => t.status === 'completed').length;
 
   // Apply category and search filters
   const filteredTasks = todayTasks.filter((task) => {
@@ -278,8 +308,37 @@ export const TaskList: React.FC = () => {
   return (
     <div className="space-y-4">
       
-      {/* Header & Satisfying Add Task Button */}
-      <div className="flex items-center justify-between gap-4 bg-white dark:bg-zinc-900 p-4 sm:p-5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xs">
+      {/* Toast Notification for Undo/Redo/Action feedback */}
+      {lastActionMessage && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-lg text-xs animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles className="w-3.5 h-3.5 text-blue-400 dark:text-blue-600 shrink-0" />
+            <span className="truncate font-medium">{lastActionMessage}</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {canUndo && (
+              <button
+                type="button"
+                onClick={undo}
+                className="px-2.5 py-1 rounded-lg bg-white/20 dark:bg-zinc-900/10 hover:bg-white/30 dark:hover:bg-zinc-900/20 text-xs font-bold transition-colors cursor-pointer"
+              >
+                Undo
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={clearLastActionMessage}
+              className="p-1 rounded-md hover:bg-white/20 dark:hover:bg-zinc-900/10 transition-colors cursor-pointer"
+              title="Dismiss"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Header & Smart Action Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-white dark:bg-zinc-900 p-4 sm:p-5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xs">
         
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
@@ -288,28 +347,89 @@ export const TaskList: React.FC = () => {
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-                Today&apos;s Tasks &amp; Routines
+                {dateTitle}
               </h2>
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
                 {todayTasks.length}
               </span>
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
-              {todayTasks.filter(t => t.status === 'completed').length} of {todayTasks.length} completed
+              {completedCount} of {todayTasks.length} completed
             </p>
           </div>
         </div>
 
-        {/* Satisfying Add Task Button */}
-        <button
-          id="btn-add-task-inline"
-          type="button"
-          onClick={() => openTaskModal()}
-          className="group relative inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 active:to-indigo-700 text-white text-xs sm:text-sm font-semibold shadow-md shadow-blue-600/20 hover:shadow-lg hover:shadow-blue-600/30 hover:scale-[1.02] active:scale-[0.97] transition-all duration-150 cursor-pointer shrink-0"
-        >
-          <Plus className="w-4 h-4 stroke-[2.5] transition-transform duration-200 group-hover:rotate-90" />
-          <span>Add Task</span>
-        </button>
+        {/* Smart Controls Group: Undo, Redo, Clear Day & Add Task */}
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap sm:flex-nowrap">
+          
+          {/* Undo & Redo Smart Segmented Controls */}
+          <div className="inline-flex items-center rounded-xl bg-zinc-100/90 dark:bg-zinc-800/90 p-1 border border-zinc-200/70 dark:border-zinc-700/60 shadow-2xs">
+            <button
+              id="btn-undo-action"
+              type="button"
+              disabled={!canUndo}
+              onClick={undo}
+              className="relative inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-white dark:hover:bg-zinc-700 disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
+              title="Undo recent change (Ctrl+Z / ⌘Z)"
+              aria-label="Undo action"
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+              <span className="hidden md:inline text-[11px] font-semibold">Undo</span>
+              {undoCount > 0 && (
+                <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 tabular-nums">
+                  {undoCount}
+                </span>
+              )}
+            </button>
+
+            <div className="w-[1px] h-4 bg-zinc-300 dark:bg-zinc-700 mx-0.5" />
+
+            <button
+              id="btn-redo-action"
+              type="button"
+              disabled={!canRedo}
+              onClick={redo}
+              className="relative inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-zinc-700 dark:text-zinc-200 hover:bg-white dark:hover:bg-zinc-700 disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
+              title="Redo action (Ctrl+Y / ⌘⇧Z)"
+              aria-label="Redo action"
+            >
+              <Redo2 className="w-3.5 h-3.5" />
+              <span className="hidden md:inline text-[11px] font-semibold">Redo</span>
+              {redoCount > 0 && (
+                <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 tabular-nums">
+                  {redoCount}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Clear Day Button */}
+          {todayTasks.length > 0 && (
+            <button
+              id="btn-clear-day-tasks"
+              type="button"
+              onClick={() => setIsClearConfirmOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl text-zinc-600 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 bg-zinc-100/90 dark:bg-zinc-800/90 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-zinc-200/70 dark:border-zinc-700/60 hover:border-rose-200 dark:hover:border-rose-900/60 transition-all duration-150 cursor-pointer shrink-0"
+              title={`Clear ${dateSubLabel.toLowerCase()} tasks`}
+            >
+              <Trash2 className="w-3.5 h-3.5 text-zinc-400 group-hover:text-rose-500" />
+              <span className="hidden sm:inline">Clear {dateSubLabel}</span>
+              <span className="sm:hidden">Clear</span>
+            </button>
+          )}
+
+          {/* Satisfying Add Task Button */}
+          <button
+            id="btn-add-task-inline"
+            type="button"
+            onClick={() => openTaskModal()}
+            className="group relative inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 active:to-indigo-700 text-white text-xs sm:text-sm font-semibold shadow-md shadow-blue-600/20 hover:shadow-lg hover:shadow-blue-600/30 hover:scale-[1.02] active:scale-[0.97] transition-all duration-150 cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5] transition-transform duration-200 group-hover:rotate-90" />
+            <span>Add Task</span>
+          </button>
+
+        </div>
 
       </div>
 
@@ -320,10 +440,10 @@ export const TaskList: React.FC = () => {
             <CheckCircle className="w-6 h-6" />
           </div>
           <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-            No tasks scheduled for today
+            No tasks scheduled for {dateSubLabel.toLowerCase()}
           </h4>
           <p className="text-xs text-zinc-400 mt-1 max-w-sm mx-auto">
-            Add a clear focus task or daily routine to build positive momentum today.
+            Add a clear focus task or daily routine to build positive momentum {isToday ? 'today' : isTomorrow ? 'tomorrow' : `on ${selectedDate}`}.
           </p>
           <button
             type="button"
@@ -331,7 +451,7 @@ export const TaskList: React.FC = () => {
             className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-sm hover:shadow transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            Create First Task
+            Create Task for {dateSubLabel}
           </button>
         </div>
       ) : (
@@ -530,6 +650,85 @@ export const TaskList: React.FC = () => {
                   <span>{selectedTaskDetail.status === 'completed' ? 'Mark Pending' : 'Done'}</span>
                 </button>
               </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Clear Day Confirmation Modal */}
+      {isClearConfirmOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={() => setIsClearConfirmOpen(false)}
+        >
+          <div 
+            className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-5 sm:p-6 relative animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start gap-3.5 mb-4">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200/60 dark:border-rose-800/60 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
+                <Trash2 className="w-5 h-5 stroke-[2.2]" />
+              </div>
+              <div className="min-w-0 pr-6">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                  Clear {dateSubLabel}&apos;s Tasks?
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                  You currently have <strong className="text-zinc-800 dark:text-zinc-200">{todayTasks.length} {todayTasks.length === 1 ? 'task' : 'tasks'}</strong> ({completedCount} completed) scheduled for {dateSubLabel.toLowerCase()}.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsClearConfirmOpen(false)}
+                className="absolute top-4 right-4 p-1.5 rounded-full text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Smart Recovery Info Note */}
+            <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-800/50 text-[11px] text-blue-700 dark:text-blue-300 flex items-center gap-2 mb-5">
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <span>Full undo protection: you can easily restore these tasks with the Undo button or <kbd className="px-1 py-0.5 rounded bg-white dark:bg-zinc-800 border border-blue-200 dark:border-zinc-700 font-mono text-[10px]">Ctrl+Z</kbd>.</span>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  clearTasksForDate(selectedDate, 'all');
+                  setIsClearConfirmOpen(false);
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Clear All {todayTasks.length} Tasks for {dateSubLabel}</span>
+              </button>
+
+              {completedCount > 0 && completedCount < todayTasks.length && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearTasksForDate(selectedDate, 'completed');
+                    setIsClearConfirmOpen(false);
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>Clear Completed Tasks Only ({completedCount})</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsClearConfirmOpen(false)}
+                className="w-full inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
             </div>
 
           </div>
