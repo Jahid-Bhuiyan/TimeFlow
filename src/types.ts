@@ -35,6 +35,7 @@ export interface Task {
   isRecurringRoutine?: boolean;
   routineTimeSlot?: RoutineSlot;
   routineTemplateId?: string;
+  routineStartDate?: string;
   order?: number;
   createdAt: string;
   updatedAt: string;

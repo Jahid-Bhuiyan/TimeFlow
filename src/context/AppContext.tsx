@@ -99,7 +99,8 @@ const STORAGE_KEYS = {
   TIMER: 'timeflow_timer_v1',
   THEME: 'timeflow_theme_v1',
   SOUND: 'timeflow_sound_v1',
-  CATEGORIES: 'timeflow_categories_v1'
+  CATEGORIES: 'timeflow_categories_v1',
+  TERMINATED_ROUTINES: 'timeflow_terminated_routines_v1'
 };
 
 const defaultTimerState: ActiveTimer = {
@@ -162,6 +163,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     const seed = generateInitialData();
     return seed.timeLogs;
+  });
+
+  const [terminatedRoutines, setTerminatedRoutines] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.TERMINATED_ROUTINES);
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // fallback
+    }
+    return {};
   });
 
   const [activeTimer, setActiveTimer] = useState<ActiveTimer>(() => {
@@ -310,6 +321,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
   }, [categories]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.TERMINATED_ROUTINES, JSON.stringify(terminatedRoutines));
+  }, [terminatedRoutines]);
 
   // Category Actions
   const openCategoryModal = (category: CategoryInfo | null = null) => {
@@ -569,6 +584,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Task Actions
   const syncRoutinesForDate = useCallback((targetDate: string) => {
     if (!targetDate) return;
+    const todayStr = getTodayDateString();
+    const tomorrowStr = getTodayDateString(1);
+
+    // RULE 1: Never auto-create daily routine lists for previous days (< today).
+    // Keep only the days when the user actually started from / recorded tasks.
+    if (targetDate < todayStr) {
+      return;
+    }
+
+    // RULE 2: Never auto-create daily routine lists for far future days (> tomorrow).
+    // Only auto-prepare routine schedule for today and the next day (tomorrow) only.
+    if (targetDate > tomorrowStr) {
+      return;
+    }
+
     setTasks((prevTasks) => {
       // Gather all distinct recurring routine templates
       const routineTemplates = new Map<string, Task>();
@@ -591,6 +621,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (t.isRecurringRoutine) {
           const key = t.routineTemplateId || `${t.title.toLowerCase().trim()}__${t.routineTimeSlot || 'morning'}`;
           existingKeys.add(key);
+          if (t.routineTemplateId) existingKeys.add(t.routineTemplateId);
         }
       });
 
@@ -598,65 +629,98 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       let maxOrder = targetDateTasks.reduce((max, t) => Math.max(max, t.order ?? 0), 0);
 
       routineTemplates.forEach((tmpl, key) => {
-        if (!existingKeys.has(key)) {
-          maxOrder++;
-          newTasksToAdd.push({
-            id: `task_routine_${targetDate}_${Math.random().toString(36).substring(2, 9)}`,
-            userId: user?.id || 'guest',
-            title: tmpl.title,
-            description: tmpl.description || '',
-            category: tmpl.category,
-            priority: tmpl.priority || 'medium',
-            status: 'pending', // Starts fresh for the new date
-            date: targetDate,
-            targetMinutes: tmpl.targetMinutes || 15,
-            loggedMinutes: 0,
-            isRecurringRoutine: true,
-            routineTimeSlot: tmpl.routineTimeSlot || 'morning',
-            routineTemplateId: tmpl.routineTemplateId || key,
-            order: tmpl.order !== undefined ? tmpl.order : maxOrder,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          });
+        const templateId = tmpl.routineTemplateId;
+        const altKey = `${tmpl.title.toLowerCase().trim()}__${tmpl.routineTimeSlot || 'morning'}`;
+        const matchesExisting = existingKeys.has(key) || existingKeys.has(altKey) || (templateId ? existingKeys.has(templateId) : false);
+        if (matchesExisting) return;
+
+        // 1. RULE: Do NOT add a daily routine in previous days before it was added/started
+        const routineStartDate = tmpl.routineStartDate || tmpl.date || (tmpl.createdAt ? tmpl.createdAt.slice(0, 10) : getTodayDateString());
+        if (targetDate < routineStartDate) {
+          return;
         }
+
+        // 2. RULE: Do NOT add a daily routine on or after the date it was deleted
+        const terminatedDate = terminatedRoutines[key] || terminatedRoutines[altKey] || (templateId ? terminatedRoutines[templateId] : undefined);
+        if (terminatedDate && targetDate >= terminatedDate) {
+          return;
+        }
+
+        maxOrder++;
+        newTasksToAdd.push({
+          id: `task_routine_${targetDate}_${Math.random().toString(36).substring(2, 9)}`,
+          userId: user?.id || 'guest',
+          title: tmpl.title,
+          description: tmpl.description || '',
+          category: tmpl.category,
+          priority: tmpl.priority || 'medium',
+          status: 'pending', // Starts fresh for the target date
+          date: targetDate,
+          targetMinutes: tmpl.targetMinutes || 15,
+          loggedMinutes: 0,
+          isRecurringRoutine: true,
+          routineTimeSlot: tmpl.routineTimeSlot || 'morning',
+          routineTemplateId: tmpl.routineTemplateId || key,
+          routineStartDate,
+          order: tmpl.order !== undefined ? tmpl.order : maxOrder,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
       });
 
       if (newTasksToAdd.length === 0) return prevTasks;
       return [...prevTasks, ...newTasksToAdd];
     });
-  }, [user?.id]);
+  }, [terminatedRoutines, user?.id]);
 
-  // Automatically keep all daily recurring routines on selectedDate and today
+  // Automatically keep daily recurring routines for today and the next day (tomorrow) only
   useEffect(() => {
-    syncRoutinesForDate(selectedDate);
     const todayStr = getTodayDateString();
-    if (selectedDate !== todayStr) {
-      syncRoutinesForDate(todayStr);
-    }
-  }, [selectedDate, syncRoutinesForDate]);
+    const tomorrowStr = getTodayDateString(1);
+    syncRoutinesForDate(todayStr);
+    syncRoutinesForDate(tomorrowStr);
+  }, [syncRoutinesForDate]);
 
   const addTask = useCallback((taskData: Omit<Task, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'loggedMinutes'> & { loggedMinutes?: number }): Task => {
     sounds.playClick(soundEnabled);
     const nowIso = new Date().toISOString();
     const isRoutine = !!taskData.isRecurringRoutine;
+    const taskDate = taskData.date || selectedDate || getTodayDateString();
     const routineTemplateId = isRoutine 
       ? (taskData.routineTemplateId || `routine_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`)
+      : undefined;
+    const routineKey = isRoutine
+      ? (routineTemplateId || `${taskData.title.toLowerCase().trim()}__${taskData.routineTimeSlot || 'morning'}`)
       : undefined;
 
     const newTask: Task = {
       ...taskData,
       id: `task_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       userId: user?.id || 'guest',
+      date: taskDate,
       loggedMinutes: taskData.loggedMinutes || 0,
       isRecurringRoutine: isRoutine,
       routineTemplateId,
+      routineStartDate: isRoutine ? taskDate : undefined,
       createdAt: nowIso,
       updatedAt: nowIso
     };
 
+    // If re-adding or creating a routine, clear any previous termination record so it syncs from this taskDate forward
+    if (isRoutine && routineKey) {
+      setTerminatedRoutines((prev) => {
+        const next = { ...prev };
+        delete next[routineKey];
+        if (routineTemplateId) delete next[routineTemplateId];
+        const altKey = `${taskData.title.toLowerCase().trim()}__${taskData.routineTimeSlot || 'morning'}`;
+        delete next[altKey];
+        return next;
+      });
+    }
+
     setTasks((prev) => [newTask, ...prev]);
     return newTask;
-  }, [soundEnabled, user?.id]);
+  }, [selectedDate, soundEnabled, user?.id]);
 
   const updateTask = useCallback((taskId: string, updates: Partial<Task>) => {
     sounds.playClick(soundEnabled);
@@ -665,7 +729,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (t.id === taskId) {
           const isRoutine = updates.isRecurringRoutine !== undefined ? updates.isRecurringRoutine : t.isRecurringRoutine;
           const routineTemplateId = isRoutine ? (t.routineTemplateId || `routine_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`) : undefined;
-          return { ...t, ...updates, isRecurringRoutine: isRoutine, routineTemplateId, updatedAt: new Date().toISOString() };
+          const routineStartDate = isRoutine ? (t.routineStartDate || t.date || updates.date || getTodayDateString()) : undefined;
+          return { 
+            ...t, 
+            ...updates, 
+            isRecurringRoutine: isRoutine, 
+            routineTemplateId, 
+            routineStartDate, 
+            updatedAt: new Date().toISOString() 
+          };
         }
         return t;
       })
@@ -747,7 +819,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteTask = useCallback((taskId: string) => {
     sounds.playClick(soundEnabled);
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    setTasks((prev) => {
+      const targetTask = prev.find((t) => t.id === taskId);
+      if (!targetTask) return prev.filter((t) => t.id !== taskId);
+
+      // If it is a recurring daily routine: delete on current date AND all next/future days
+      if (targetTask.isRecurringRoutine) {
+        const templateId = targetTask.routineTemplateId;
+        const fallbackKey = `${targetTask.title.toLowerCase().trim()}__${targetTask.routineTimeSlot || 'morning'}`;
+        const deleteDate = targetTask.date;
+
+        // Register routine termination from deleteDate onwards
+        setTerminatedRoutines((prevTerminated) => ({
+          ...prevTerminated,
+          [fallbackKey]: deleteDate,
+          ...(templateId ? { [templateId]: deleteDate } : {})
+        }));
+
+        // Remove current task instance AND any future/next days instances of this routine
+        return prev.filter((t) => {
+          if (t.id === taskId) return false;
+
+          const isMatchingRoutine = t.isRecurringRoutine && (
+            (templateId && t.routineTemplateId === templateId) ||
+            (t.title.toLowerCase().trim() === targetTask.title.toLowerCase().trim() && (t.routineTimeSlot || 'morning') === (targetTask.routineTimeSlot || 'morning'))
+          );
+
+          if (isMatchingRoutine) {
+            // Delete if the matching routine is on or after the deletion date
+            if (t.date >= deleteDate) {
+              return false;
+            }
+          }
+
+          return true;
+        });
+      }
+
+      // Non-recurring task: delete single task
+      return prev.filter((t) => t.id !== taskId);
+    });
   }, [soundEnabled]);
 
   // Reorder task priority and position within the list using Up/Down arrows
@@ -1031,6 +1142,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUser(data.user);
     setTasks(data.tasks);
     setTimeLogs(data.timeLogs);
+    setTerminatedRoutines({});
     setCategories(DEFAULT_CATEGORIES);
     setActiveTimer(defaultTimerState);
   };

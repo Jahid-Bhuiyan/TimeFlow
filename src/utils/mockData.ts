@@ -58,6 +58,8 @@ export const generateInitialData = (userId: string = INITIAL_USER.id) => {
       completedAt: `${today}T07:30:00.000Z`,
       isRecurringRoutine: true,
       routineTimeSlot: 'morning',
+      routineTemplateId: 'routine_morning_mindfulness',
+      routineStartDate: today,
       createdAt: `${today}T07:00:00.000Z`,
       updatedAt: `${today}T07:30:00.000Z`
     },
@@ -104,6 +106,8 @@ export const generateInitialData = (userId: string = INITIAL_USER.id) => {
       loggedMinutes: 0,
       isRecurringRoutine: true,
       routineTimeSlot: 'afternoon',
+      routineTemplateId: 'routine_hiit_workout',
+      routineStartDate: today,
       createdAt: `${today}T08:30:00.000Z`,
       updatedAt: `${today}T08:30:00.000Z`
     },
@@ -120,54 +124,10 @@ export const generateInitialData = (userId: string = INITIAL_USER.id) => {
       loggedMinutes: 0,
       isRecurringRoutine: true,
       routineTimeSlot: 'evening',
+      routineTemplateId: 'routine_clean_workspace',
+      routineStartDate: today,
       createdAt: `${today}T09:00:00.000Z`,
       updatedAt: `${today}T09:00:00.000Z`
-    },
-    // Backlog / neglected high-priority tasks to demonstrate intelligent insights
-    {
-      id: 'task_neglected_1',
-      userId,
-      title: 'Tax Filing & Financial Quarter Audit',
-      description: 'Assemble all invoices, receipts, and submit quarterly form',
-      category: 'chores',
-      priority: 'urgent',
-      status: 'pending',
-      date: getTodayDateString(-7),
-      targetMinutes: 90,
-      loggedMinutes: 0,
-      isRecurringRoutine: false,
-      createdAt: `${getTodayDateString(-7)}T10:00:00.000Z`,
-      updatedAt: `${getTodayDateString(-7)}T10:00:00.000Z`
-    },
-    {
-      id: 'task_neglected_2',
-      userId,
-      title: 'Portfolio Case Study Documentation',
-      description: 'Write up technical architecture breakdown for client showcase',
-      category: 'personal',
-      priority: 'high',
-      status: 'pending',
-      date: getTodayDateString(-12),
-      targetMinutes: 180,
-      loggedMinutes: 20,
-      isRecurringRoutine: false,
-      createdAt: `${getTodayDateString(-12)}T11:00:00.000Z`,
-      updatedAt: `${getTodayDateString(-12)}T11:00:00.000Z`
-    },
-    {
-      id: 'task_neglected_3',
-      userId,
-      title: 'TypeScript Advanced Type Safety Course Review',
-      description: 'Complete final exam and project assignment',
-      category: 'study',
-      priority: 'high',
-      status: 'pending',
-      date: getTodayDateString(-5),
-      targetMinutes: 90,
-      loggedMinutes: 0,
-      isRecurringRoutine: false,
-      createdAt: `${getTodayDateString(-5)}T09:00:00.000Z`,
-      updatedAt: `${getTodayDateString(-5)}T09:00:00.000Z`
     }
   ];
 
