@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckSquare, Clock, Tag, Flag, Repeat, Sparkles, Plus, Settings2 } from 'lucide-react';
+import { X, CheckSquare, Repeat } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { ActivityCategory, RoutineSlot, TaskPriority } from '../../types';
+import { RoutineSlot, TaskPriority } from '../../types';
 
 export const TaskModal: React.FC = () => {
   const { 
@@ -10,14 +10,11 @@ export const TaskModal: React.FC = () => {
     editingTask, 
     addTask, 
     updateTask, 
-    selectedDate,
-    categoryList,
-    openCategoryModal
+    selectedDate
   } = useApp();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<ActivityCategory>('work');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [targetMinutes, setTargetMinutes] = useState<number>(30);
   const [isCustomDuration, setIsCustomDuration] = useState(false);
@@ -30,7 +27,6 @@ export const TaskModal: React.FC = () => {
     if (editingTask) {
       setTitle(editingTask.title);
       setDescription(editingTask.description || '');
-      setCategory(editingTask.category);
       setPriority(editingTask.priority);
       const mins = editingTask.targetMinutes || 30;
       setTargetMinutes(mins);
@@ -40,7 +36,6 @@ export const TaskModal: React.FC = () => {
     } else {
       setTitle('');
       setDescription('');
-      setCategory('work');
       setPriority('medium');
       setTargetMinutes(30);
       setIsCustomDuration(false);
@@ -59,7 +54,7 @@ export const TaskModal: React.FC = () => {
       updateTask(editingTask.id, {
         title: title.trim(),
         description: description.trim() || undefined,
-        category,
+        category: editingTask.category || 'work',
         priority,
         targetMinutes,
         isRecurringRoutine: isRecurring,
@@ -69,7 +64,7 @@ export const TaskModal: React.FC = () => {
       addTask({
         title: title.trim(),
         description: description.trim() || undefined,
-        category,
+        category: 'work',
         priority,
         status: 'pending',
         date: selectedDate,
@@ -107,7 +102,7 @@ export const TaskModal: React.FC = () => {
               {editingTask && editingTask.id ? 'Edit Focus Task' : 'Create New Focus Task'}
             </h2>
             <p className="text-xs text-zinc-400">
-              Define target duration and category for accurate productivity analytics
+              Set title and target duration for your planned focus session
             </p>
           </div>
         </div>
@@ -124,7 +119,7 @@ export const TaskModal: React.FC = () => {
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="E.g., Complete API endpoint caching, Finish LeetCode daily..."
+              placeholder="E.g., Complete API endpoint caching, Finish project notes..."
               className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
           </div>
@@ -141,52 +136,6 @@ export const TaskModal: React.FC = () => {
               placeholder="Add key milestones, links, or criteria for completion..."
               className="w-full px-3.5 py-2 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
-          </div>
-
-          {/* Category Chips */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                Activity Category
-              </label>
-              <button
-                type="button"
-                onClick={() => openCategoryModal()}
-                className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-3 h-3" />
-                <span>Add / Manage Categories</span>
-              </button>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-40 overflow-y-auto pr-1">
-              {categoryList.map((cat) => {
-                const isSelected = category === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setCategory(cat.id)}
-                    className={`flex items-center gap-2 p-2 rounded-xl text-xs font-medium border text-left transition-all cursor-pointer ${
-                      isSelected
-                        ? 'ring-1 ring-offset-0 font-bold'
-                        : 'bg-zinc-50 dark:bg-zinc-800/60 border-zinc-200/60 dark:border-zinc-700/60 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100'
-                    }`}
-                    style={
-                      isSelected
-                        ? {
-                            backgroundColor: `${cat.color}15`,
-                            borderColor: `${cat.color}60`,
-                            color: cat.color
-                          }
-                        : undefined
-                    }
-                  >
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                    <span className="truncate">{cat.name}</span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
           {/* Priority & Target Duration */}

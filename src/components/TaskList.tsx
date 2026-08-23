@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Task, TaskPriority } from '../types';
-import { formatMinutesDuration } from '../utils/mockData';
 
 export const TaskList: React.FC = () => {
   const { 
@@ -33,7 +32,6 @@ export const TaskList: React.FC = () => {
     getCategory,
   } = useApp();
 
-  const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'completed' | 'urgent'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTaskDetail, setSelectedTaskDetail] = useState<Task | null>(null);
 
@@ -56,39 +54,17 @@ export const TaskList: React.FC = () => {
       return 0;
     });
 
-  // Apply filters
+  // Apply category and search filters
   const filteredTasks = todayTasks.filter((task) => {
     if (activeCategoryFilter !== 'all' && task.category !== activeCategoryFilter) {
       return false;
     }
-    if (filterTab === 'pending' && (task.status === 'completed' || task.status === 'missed')) return false;
-    if (filterTab === 'completed' && task.status !== 'completed') return false;
-    if (filterTab === 'urgent' && task.priority !== 'urgent' && task.priority !== 'high') return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return task.title.toLowerCase().includes(q) || (task.description && task.description.toLowerCase().includes(q));
     }
     return true;
   });
-
-  // Separate recurring routine items from one-off tasks for cleaner presentation
-  const routineTasks = filteredTasks.filter(t => t.isRecurringRoutine);
-  const regularTasks = filteredTasks.filter(t => !t.isRecurringRoutine);
-
-  // Active / remaining tasks in plan (excludes completed & missed/crossed items)
-  const activeAllTasks = todayTasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
-  const activeRoutineTasks = routineTasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
-  const activeRegularTasks = regularTasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
-
-  // Automatic deduction: Total plan reflects ONLY pending/active items
-  const totalAllTargetMinutes = activeAllTasks.reduce((acc, t) => acc + (t.targetMinutes || 0), 0);
-  const totalAllLoggedMinutes = todayTasks.reduce((acc, t) => acc + (t.loggedMinutes || 0), 0);
-
-  const routineTargetMinutes = activeRoutineTasks.reduce((acc, t) => acc + (t.targetMinutes || 0), 0);
-  const routineLoggedMinutes = routineTasks.reduce((acc, t) => acc + (t.loggedMinutes || 0), 0);
-
-  const regularTargetMinutes = activeRegularTasks.reduce((acc, t) => acc + (t.targetMinutes || 0), 0);
-  const regularLoggedMinutes = regularTasks.reduce((acc, t) => acc + (t.loggedMinutes || 0), 0);
 
   const renderPriorityBadge = (priority: TaskPriority) => {
     switch (priority) {
@@ -297,75 +273,38 @@ export const TaskList: React.FC = () => {
   return (
     <div className="space-y-4">
       
-      {/* Header & Filter Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xs">
+      {/* Header & Satisfying Add Task Button */}
+      <div className="flex items-center justify-between gap-4 bg-white dark:bg-zinc-900 p-4 sm:p-5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xs">
         
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-            <span>Today&apos;s Tasks & Routines</span>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-              {todayTasks.length}
-            </span>
-          </h2>
-
-          {/* Automatic Total Time count badge */}
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700/60 text-zinc-700 dark:text-zinc-200 font-semibold text-xs tabular-nums">
-            <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-            <span>Total: {formatMinutesDuration(totalAllTargetMinutes)}</span>
-            {totalAllLoggedMinutes > 0 && (
-              <span className="text-zinc-400 dark:text-zinc-500 font-normal">
-                ({formatMinutesDuration(totalAllLoggedMinutes)} logged)
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+            <CheckCircle className="w-5 h-5 stroke-[2.2]" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                Today&apos;s Tasks &amp; Routines
+              </h2>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                {todayTasks.length}
               </span>
-            )}
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
+              {todayTasks.filter(t => t.status === 'completed').length} of {todayTasks.length} completed
+            </p>
           </div>
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <div className="inline-flex p-1 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-xs font-medium">
-            <button
-              onClick={() => setFilterTab('all')}
-              className={`px-2.5 py-1 rounded-lg transition-all ${
-                filterTab === 'all' ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 shadow-xs font-bold' : 'text-zinc-500'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilterTab('pending')}
-              className={`px-2.5 py-1 rounded-lg transition-all ${
-                filterTab === 'pending' ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 shadow-xs font-bold' : 'text-zinc-500'
-              }`}
-            >
-              Pending
-            </button>
-            <button
-              onClick={() => setFilterTab('completed')}
-              className={`px-2.5 py-1 rounded-lg transition-all ${
-                filterTab === 'completed' ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 shadow-xs font-bold' : 'text-zinc-500'
-              }`}
-            >
-              Done
-            </button>
-            <button
-              onClick={() => setFilterTab('urgent')}
-              className={`px-2.5 py-1 rounded-lg transition-all ${
-                filterTab === 'urgent' ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 shadow-xs font-bold' : 'text-zinc-500'
-              }`}
-            >
-              Priority
-            </button>
-          </div>
-
-          <button
-            id="btn-add-task-inline"
-            onClick={() => openTaskModal()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs active:scale-95 transition-all cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Task</span>
-          </button>
-        </div>
+        {/* Satisfying Add Task Button */}
+        <button
+          id="btn-add-task-inline"
+          type="button"
+          onClick={() => openTaskModal()}
+          className="group relative inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 active:to-indigo-700 text-white text-xs sm:text-sm font-semibold shadow-md shadow-blue-600/20 hover:shadow-lg hover:shadow-blue-600/30 hover:scale-[1.02] active:scale-[0.97] transition-all duration-150 cursor-pointer shrink-0"
+        >
+          <Plus className="w-4 h-4 stroke-[2.5] transition-transform duration-200 group-hover:rotate-90" />
+          <span>Add Task</span>
+        </button>
 
       </div>
 
@@ -376,58 +315,23 @@ export const TaskList: React.FC = () => {
             <CheckCircle className="w-6 h-6" />
           </div>
           <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-            {filterTab === 'completed' ? 'No completed tasks yet' : 'No tasks for this filter'}
+            No tasks scheduled for today
           </h4>
           <p className="text-xs text-zinc-400 mt-1 max-w-sm mx-auto">
-            Add a clear high-value task or schedule routine rituals to build positive momentum today.
+            Add a clear focus task or daily routine to build positive momentum today.
           </p>
           <button
+            type="button"
             onClick={() => openTaskModal()}
-            className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+            className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-sm hover:shadow transition-all cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4 stroke-[2.5]" />
             Create First Task
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
-          
-          {/* Routine Section if available */}
-          {routineTasks.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                  <Repeat className="w-3.5 h-3.5 text-purple-500" />
-                  Daily Routine Rituals ({routineTasks.filter(t => t.status === 'completed').length}/{routineTasks.length})
-                </span>
-                <span className="text-[11px] font-semibold font-mono text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-md border border-purple-200/50 dark:border-purple-800/50">
-                  Total: {formatMinutesDuration(routineTargetMinutes)}
-                </span>
-              </div>
-              <div className="space-y-2">
-                {routineTasks.map((t, idx) => renderTaskItem(t, idx, routineTasks))}
-              </div>
-            </div>
-          )}
-
-          {/* Regular Tasks */}
-          {regularTasks.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between px-1 pt-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-blue-500" />
-                  Scheduled Focus Tasks ({regularTasks.filter(t => t.status === 'completed').length}/{regularTasks.length})
-                </span>
-                <span className="text-[11px] font-semibold font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-md border border-blue-200/50 dark:border-blue-800/50">
-                  Total: {formatMinutesDuration(regularTargetMinutes)}
-                </span>
-              </div>
-              <div className="space-y-2">
-                {regularTasks.map((t, idx) => renderTaskItem(t, idx, regularTasks))}
-              </div>
-            </div>
-          )}
-
+        <div className="space-y-2">
+          {filteredTasks.map((t, idx) => renderTaskItem(t, idx, filteredTasks))}
         </div>
       )}
 

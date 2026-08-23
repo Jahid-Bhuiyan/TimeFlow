@@ -9,9 +9,7 @@ import {
   Globe
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { TodaySummaryCards } from './TodaySummaryCards';
 import { ActiveTimerWidget } from './ActiveTimerWidget';
-import { QuickLogBar } from './QuickLogBar';
 import { TaskList } from './TaskList';
 import { getTodayDateString, formatMinutesDuration } from '../utils/mockData';
 
@@ -33,13 +31,8 @@ export const TodayView: React.FC = () => {
   const todayTasks = tasks.filter((t) => t.date === selectedDate);
   // Active/pending tasks that are still in the active plan (excludes completed and missed/crossed items)
   const activeTasks = todayTasks.filter((t) => t.status === 'pending' || t.status === 'in_progress');
-  const activeRoutineTasks = activeTasks.filter((t) => t.isRecurringRoutine);
-  const activeRegularTasks = activeTasks.filter((t) => !t.isRecurringRoutine);
 
   const totalAllMinutes = activeTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
-  const totalRoutineMinutes = activeRoutineTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
-  const totalRegularMinutes = activeRegularTasks.reduce((sum, t) => sum + (t.targetMinutes || 0), 0);
-
   const completedCount = todayTasks.filter((t) => t.status === 'completed').length;
   const missedCount = todayTasks.filter((t) => t.status === 'missed').length;
 
@@ -100,15 +93,13 @@ export const TodayView: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-3 mt-1.5 text-xs text-zinc-500 dark:text-zinc-400 flex-wrap">
-            {/* Automatic Total Time for all active listed tasks and routines */}
+            {/* Automatic Total Time for all active listed tasks */}
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 font-semibold text-[11px]">
               <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400 shrink-0" />
               <span>Total Plan: {formatMinutesDuration(totalAllMinutes)}</span>
               {totalAllMinutes > 0 ? (
                 <span className="text-blue-500/80 dark:text-blue-400/80 font-normal">
-                  ({activeRoutineTasks.length > 0 ? `${formatMinutesDuration(totalRoutineMinutes)} routines` : ''}
-                  {activeRoutineTasks.length > 0 && activeRegularTasks.length > 0 ? ' • ' : ''}
-                  {activeRegularTasks.length > 0 ? `${formatMinutesDuration(totalRegularMinutes)} focus tasks` : ''})
+                  ({activeTasks.length} {activeTasks.length === 1 ? 'task' : 'tasks'} remaining)
                 </span>
               ) : todayTasks.length > 0 ? (
                 <span className="text-emerald-600 dark:text-emerald-400 font-normal">
@@ -165,25 +156,12 @@ export const TodayView: React.FC = () => {
         </div>
       </div>
 
-      {/* Summary Scorecards */}
-      <TodaySummaryCards />
-
-      {/* Hero Timer & Quick Logger Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Main Live Focus Timer (7 cols on desktop) */}
-        <div className="lg:col-span-7">
-          <ActiveTimerWidget />
-        </div>
-
-        {/* Quick Log Activity & Shortcuts (5 cols on desktop) */}
-        <div className="lg:col-span-5 flex flex-col space-y-4">
-          <QuickLogBar />
-        </div>
-
+      {/* Main Focus Stopwatch/Timer (Desktop & Tablet only, hidden on mobile) */}
+      <div className="hidden sm:block">
+        <ActiveTimerWidget />
       </div>
 
-      {/* Today's Tasks & Routine Rituals Checklist */}
+      {/* Unified Today's Tasks Checklist */}
       <TaskList />
 
     </div>

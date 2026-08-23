@@ -211,11 +211,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const currentDateString = useMemo(() => getTodayDateString(), [realTime]);
 
   const currentTimeString = useMemo(() => {
-    return realTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return realTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
   }, [realTime]);
 
   const formattedRealTime = useMemo(() => {
-    return realTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return realTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   }, [realTime]);
 
   const formattedRealDate = useMemo(() => {

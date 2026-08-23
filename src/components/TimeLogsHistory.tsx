@@ -271,7 +271,7 @@ export const TimeLogsHistory: React.FC = () => {
                         </span>
                         {log.startTime && (
                           <span>
-                            {new Date(log.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(log.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                           </span>
                         )}
                       </div>

@@ -8,6 +8,7 @@ import { MonthlyAnalytics } from './components/MonthlyAnalytics';
 import { TimeLogsHistory } from './components/TimeLogsHistory';
 import { RoutinesManager } from './components/RoutinesManager';
 import { UserProfile } from './components/UserProfile';
+import { MobileCornerTimer } from './components/MobileCornerTimer';
 import { AuthModal } from './components/modals/AuthModal';
 import { TaskModal } from './components/modals/TaskModal';
 import { LogModal } from './components/modals/LogModal';
@@ -53,6 +54,9 @@ const MainLayout: React.FC = () => {
 
       {/* Mobile Native Bottom Navigation */}
       <BottomNav />
+
+      {/* Mobile Corner Countdown Floating Popup */}
+      <MobileCornerTimer />
 
       {/* Global Interactive Modals */}
       <AuthModal />
