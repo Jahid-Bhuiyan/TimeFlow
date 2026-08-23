@@ -144,29 +144,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [tasks, setTasks] = useState<Task[]>(() => {
-    const todayStr = getTodayDateString();
-    const tomorrowStr = getTodayDateString(1);
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.TASKS);
       if (saved) {
         const parsed: Task[] = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          // Filter out obsolete legacy test tasks and enforce routine date boundaries
-          return parsed.filter((t) => {
-            if (t.id.startsWith('task_neglected_')) return false;
-            if (t.isRecurringRoutine) {
-              // Rule 1: No auto-routine lists on previous days before the routine was created / started
-              const start = t.routineStartDate || todayStr;
-              if (t.date < start && t.status === 'pending' && (!t.loggedMinutes || t.loggedMinutes === 0)) {
-                return false;
-              }
-              // Rule 2: No auto-routine lists beyond tomorrow (tomorrow is next day only)
-              if (t.date > tomorrowStr && t.status === 'pending' && (!t.loggedMinutes || t.loggedMinutes === 0)) {
-                return false;
-              }
-            }
-            return true;
-          });
+          // Keep all previous days' lists that user set for each day
+          return parsed;
         }
       }
     } catch {
@@ -642,6 +626,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (routineTemplates.size === 0) return prevTasks;
 
+      // Extract today's recurring routine serial order to mirror to tomorrow
+      const todayRoutines = prevTasks
+        .filter((t) => t.date === todayStr && t.isRecurringRoutine)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+      const todayRoutineOrderMap = new Map<string, number>();
+      todayRoutines.forEach((t, idx) => {
+        const k1 = t.routineTemplateId;
+        const k2 = `${t.title.toLowerCase().trim()}__${t.routineTimeSlot || 'morning'}`;
+        todayRoutineOrderMap.set(k2, t.order !== undefined ? t.order : idx);
+        if (k1) todayRoutineOrderMap.set(k1, t.order !== undefined ? t.order : idx);
+      });
+
       // Check tasks already present on targetDate
       const targetDateTasks = prevTasks.filter((t) => t.date === targetDate);
       const existingKeys = new Set<string>();
@@ -675,6 +672,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         maxOrder++;
+        // Maintain the live serial order from today if available
+        const syncedOrder = (templateId && todayRoutineOrderMap.has(templateId))
+          ? todayRoutineOrderMap.get(templateId)!
+          : (todayRoutineOrderMap.has(altKey) ? todayRoutineOrderMap.get(altKey)! : (tmpl.order !== undefined ? tmpl.order : maxOrder));
+
         newTasksToAdd.push({
           id: `task_routine_${targetDate}_${Math.random().toString(36).substring(2, 9)}`,
           userId: user?.id || 'guest',
@@ -690,14 +692,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           routineTimeSlot: tmpl.routineTimeSlot || 'morning',
           routineTemplateId: tmpl.routineTemplateId || key,
           routineStartDate,
-          order: tmpl.order !== undefined ? tmpl.order : maxOrder,
+          order: syncedOrder,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
       });
 
-      if (newTasksToAdd.length === 0) return prevTasks;
-      return [...prevTasks, ...newTasksToAdd];
+      // Also ensure any existing routine tasks on targetDate (like tomorrow) reflect today's serial order
+      const tasksWithSyncedOrder = prevTasks.map((t) => {
+        if (targetDate === tomorrowStr && t.date === tomorrowStr && t.isRecurringRoutine) {
+          const k1 = t.routineTemplateId;
+          const k2 = `${t.title.toLowerCase().trim()}__${t.routineTimeSlot || 'morning'}`;
+          const syncedOrder = (k1 && todayRoutineOrderMap.has(k1)) ? todayRoutineOrderMap.get(k1) : todayRoutineOrderMap.get(k2);
+          if (syncedOrder !== undefined && t.order !== syncedOrder) {
+            return { ...t, order: syncedOrder, updatedAt: new Date().toISOString() };
+          }
+        }
+        return t;
+      });
+
+      if (newTasksToAdd.length === 0) return tasksWithSyncedOrder;
+      return [...tasksWithSyncedOrder, ...newTasksToAdd];
     });
   }, [terminatedRoutines, user?.id]);
 
@@ -900,8 +915,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const dateTasks = prevTasks.filter((t) => t.date === targetTask.date);
       if (dateTasks.length <= 1) return prevTasks;
 
-      // Sort by existing order if present, or by their natural index
+      // Status sort weight: active (0) -> completed (1) -> missed (2)
+      const getStatusWeight = (st: Task['status']) => {
+        if (st === 'pending' || st === 'in_progress') return 0;
+        if (st === 'completed') return 1;
+        if (st === 'missed') return 2;
+        return 0;
+      };
+
+      // Sort consistently matching the visual list
       const sortedDateTasks = [...dateTasks].sort((a, b) => {
+        const weightDiff = getStatusWeight(a.status) - getStatusWeight(b.status);
+        if (weightDiff !== 0) return weightDiff;
         if (a.order !== undefined && b.order !== undefined) {
           return a.order - b.order;
         }
@@ -925,6 +950,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         orderMap.set(t.id, idx);
       });
 
+      // Synchronize recurring routine serial order between today and tomorrow live
+      const todayStr = getTodayDateString();
+      const tomorrowStr = getTodayDateString(1);
+      const isTodayOrTomorrow = targetTask.date === todayStr || targetTask.date === tomorrowStr;
+      const otherDate = targetTask.date === todayStr ? tomorrowStr : todayStr;
+
+      const routineOrderSyncMap = new Map<string, number>();
+      if (isTodayOrTomorrow) {
+        sortedDateTasks.forEach((t, idx) => {
+          if (t.isRecurringRoutine) {
+            const k1 = t.routineTemplateId;
+            const k2 = `${t.title.toLowerCase().trim()}__${t.routineTimeSlot || 'morning'}`;
+            routineOrderSyncMap.set(k2, idx);
+            if (k1) routineOrderSyncMap.set(k1, idx);
+          }
+        });
+      }
+
       return prevTasks.map((t) => {
         if (orderMap.has(t.id)) {
           return {
@@ -933,6 +976,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             updatedAt: new Date().toISOString()
           };
         }
+
+        // Live serial mirror for matching routine tasks on tomorrow (or today)
+        if (isTodayOrTomorrow && t.date === otherDate && t.isRecurringRoutine) {
+          const k1 = t.routineTemplateId;
+          const k2 = `${t.title.toLowerCase().trim()}__${t.routineTimeSlot || 'morning'}`;
+          const syncOrder = (k1 && routineOrderSyncMap.has(k1)) ? routineOrderSyncMap.get(k1) : routineOrderSyncMap.get(k2);
+          if (syncOrder !== undefined) {
+            return {
+              ...t,
+              order: syncOrder,
+              updatedAt: new Date().toISOString()
+            };
+          }
+        }
+
         return t;
       });
     });

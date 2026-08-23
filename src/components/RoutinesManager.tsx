@@ -167,29 +167,34 @@ export const RoutinesManager: React.FC = () => {
                           }`}
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
-                            {/* Reorder Arrows */}
+                            {/* Reorder Arrows & Serial Index */}
                             <div 
-                              className="flex flex-col items-center justify-center shrink-0 -my-1" 
+                              className="flex items-center gap-1 shrink-0 -my-1" 
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <button
-                                type="button"
-                                disabled={isFirst}
-                                onClick={() => moveTaskOrder(t.id, 'up')}
-                                className="p-0.5 rounded text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-20 disabled:hover:bg-transparent transition-colors cursor-pointer"
-                                title="Move up in routine slot"
-                              >
-                                <ChevronUp className="w-3 h-3" />
-                              </button>
-                              <button
-                                type="button"
-                                disabled={isLast}
-                                onClick={() => moveTaskOrder(t.id, 'down')}
-                                className="p-0.5 rounded text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-20 disabled:hover:bg-transparent transition-colors cursor-pointer"
-                                title="Move down in routine slot"
-                              >
-                                <ChevronDown className="w-3 h-3" />
-                              </button>
+                              <div className="flex flex-col items-center justify-center">
+                                <button
+                                  type="button"
+                                  disabled={isFirst}
+                                  onClick={() => moveTaskOrder(t.id, 'up')}
+                                  className="p-0.5 rounded text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-20 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                                  title="Move up in routine slot"
+                                >
+                                  <ChevronUp className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isLast}
+                                  onClick={() => moveTaskOrder(t.id, 'down')}
+                                  className="p-0.5 rounded text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-20 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                                  title="Move down in routine slot"
+                                >
+                                  <ChevronDown className="w-3 h-3" />
+                                </button>
+                              </div>
+                              <span className="text-[10px] font-mono font-bold text-purple-600/80 dark:text-purple-400/80 w-3 text-center select-none" title={`Routine #${idx + 1}`}>
+                                {idx + 1}
+                              </span>
                             </div>
 
                             {/* Done & Missed Quick Buttons */}

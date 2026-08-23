@@ -117,31 +117,36 @@ export const TaskList: React.FC = () => {
         {/* Left Section: Reorder Arrows, Complete / Missed Buttons & Info */}
         <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
           
-          {/* Up & Down Position Priority Arrows */}
+          {/* Up & Down Position Priority Arrows & Serial Index */}
           <div 
-            className="flex flex-col items-center justify-center shrink-0 -my-1" 
+            className="flex items-center gap-1 shrink-0 -my-1" 
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              type="button"
-              disabled={isFirst}
-              onClick={() => moveTaskOrder(task.id, 'up')}
-              className="p-0.5 rounded text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-zinc-400 transition-colors cursor-pointer"
-              title="Move up in priority"
-              aria-label="Move task up"
-            >
-              <ChevronUp className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              disabled={isLast}
-              onClick={() => moveTaskOrder(task.id, 'down')}
-              className="p-0.5 rounded text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-zinc-400 transition-colors cursor-pointer"
-              title="Move down in priority"
-              aria-label="Move task down"
-            >
-              <ChevronDown className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex flex-col items-center justify-center">
+              <button
+                type="button"
+                disabled={isFirst}
+                onClick={() => moveTaskOrder(task.id, 'up')}
+                className="p-0.5 rounded text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-zinc-400 transition-colors cursor-pointer"
+                title="Move up in priority"
+                aria-label="Move task up"
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                disabled={isLast}
+                onClick={() => moveTaskOrder(task.id, 'down')}
+                className="p-0.5 rounded text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-zinc-400 transition-colors cursor-pointer"
+                title="Move down in priority"
+                aria-label="Move task down"
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <span className="text-[11px] font-mono font-semibold text-zinc-400 dark:text-zinc-500 w-4 text-center select-none" title={`Serial position #${index + 1}`}>
+              {index + 1}
+            </span>
           </div>
 
           {/* Quick Status Buttons: Check (Done) & Cross (Missed) */}
