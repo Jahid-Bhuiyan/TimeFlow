@@ -36,13 +36,13 @@ export const INITIAL_USER: User = {
   dailyGoalHours: 6.0,
   themePreference: 'light',
   soundEnabled: true,
-  createdAt: '2026-07-01T08:00:00.000Z'
+  createdAt: new Date().toISOString()
 };
 
 export const generateInitialData = (userId: string = INITIAL_USER.id) => {
   const today = getTodayDateString();
   
-  // Today's tasks
+  // Today's initial tasks (all started today)
   const tasks: Task[] = [
     {
       id: 'task_1',
@@ -131,11 +131,8 @@ export const generateInitialData = (userId: string = INITIAL_USER.id) => {
     }
   ];
 
-  // Past 30 days of realistic time logs
-  const timeLogs: TimeLog[] = [];
-  
-  // Today's logs
-  timeLogs.push(
+  // Today's time logs only - no fake historical records before user started
+  const timeLogs: TimeLog[] = [
     {
       id: 'log_today_1',
       userId,
@@ -174,91 +171,7 @@ export const generateInitialData = (userId: string = INITIAL_USER.id) => {
       isProductive: false,
       date: today
     }
-  );
-
-  // Generate historical logs for past 29 days
-  const productiveActivityPool = [
-    { title: 'Fullstack Feature Development', category: 'work', baseMinutes: 120 },
-    { title: 'Code Review & PR QA', category: 'work', baseMinutes: 60 },
-    { title: 'Algorithms & LeetCode Practice', category: 'study', baseMinutes: 45 },
-    { title: 'Read Technology Whitepaper', category: 'study', baseMinutes: 40 },
-    { title: 'Strength Training & Cardio', category: 'fitness', baseMinutes: 50 },
-    { title: 'Meal Prep & Kitchen Cleanup', category: 'chores', baseMinutes: 35 },
-    { title: 'Open Source Contribution', category: 'personal', baseMinutes: 75 },
-    { title: 'Language Learning (Spanish)', category: 'study', baseMinutes: 30 }
-  ] as const;
-
-  const timeWastePool = [
-    { title: 'Social Media Feed Rabbit Hole', category: 'time_waste', baseMinutes: 45 },
-    { title: 'Unplanned Video Binge Watching', category: 'time_waste', baseMinutes: 60 },
-    { title: 'Procrastination & Tab Hopping', category: 'time_waste', baseMinutes: 30 },
-    { title: 'Casual Mobile Gaming Session', category: 'time_waste', baseMinutes: 40 }
-  ] as const;
-
-  const leisurePool = [
-    { title: 'Dinner with Friends & Family', category: 'entertainment', baseMinutes: 90 },
-    { title: 'Documentary & Music Relaxation', category: 'entertainment', baseMinutes: 60 }
-  ] as const;
-
-  for (let i = 1; i <= 29; i++) {
-    const dayStr = getTodayDateString(-i);
-    const dayOfWeek = new Date(dayStr).getDay(); // 0 is Sunday, 6 is Saturday
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-    // Pick 2-4 productive activities
-    const numProd = isWeekend ? 2 : Math.floor(Math.random() * 2) + 3;
-    for (let p = 0; p < numProd; p++) {
-      const act = productiveActivityPool[(i + p) % productiveActivityPool.length];
-      const variance = Math.floor((Math.random() - 0.5) * 30);
-      const duration = Math.max(25, act.baseMinutes + variance);
-      
-      timeLogs.push({
-        id: `log_hist_p_${i}_${p}`,
-        userId,
-        taskTitle: act.title,
-        category: act.category,
-        startTime: `${dayStr}T09:${(p * 30).toString().padStart(2, '0')}:00.000Z`,
-        endTime: `${dayStr}T10:${(p * 30 + duration % 60).toString().padStart(2, '0')}:00.000Z`,
-        durationMinutes: duration,
-        isProductive: true,
-        date: dayStr
-      });
-    }
-
-    // Pick 1 leisure item
-    if (Math.random() > 0.3) {
-      const leis = leisurePool[i % leisurePool.length];
-      timeLogs.push({
-        id: `log_hist_l_${i}`,
-        userId,
-        taskTitle: leis.title,
-        category: leis.category,
-        startTime: `${dayStr}T19:00:00.000Z`,
-        endTime: `${dayStr}T20:00:00.000Z`,
-        durationMinutes: leis.baseMinutes,
-        isProductive: false,
-        date: dayStr
-      });
-    }
-
-    // Pick time waste items on certain days
-    if (Math.random() > 0.35) {
-      const waste = timeWastePool[i % timeWastePool.length];
-      const duration = Math.floor(Math.random() * 40) + 25;
-      timeLogs.push({
-        id: `log_hist_w_${i}`,
-        userId,
-        taskTitle: waste.title,
-        category: 'time_waste',
-        startTime: `${dayStr}T14:30:00.000Z`,
-        endTime: `${dayStr}T15:15:00.000Z`,
-        durationMinutes: duration,
-        notes: 'Identified as non-deliberate distraction',
-        isProductive: false,
-        date: dayStr
-      });
-    }
-  }
+  ];
 
   return { user: INITIAL_USER, tasks, timeLogs };
 };

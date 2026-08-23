@@ -144,9 +144,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [tasks, setTasks] = useState<Task[]>(() => {
+    const todayStr = getTodayDateString();
+    const tomorrowStr = getTodayDateString(1);
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.TASKS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed: Task[] = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          // Filter out obsolete legacy test tasks and enforce routine date boundaries
+          return parsed.filter((t) => {
+            if (t.id.startsWith('task_neglected_')) return false;
+            if (t.isRecurringRoutine) {
+              // Rule 1: No auto-routine lists on previous days before the routine was created / started
+              const start = t.routineStartDate || todayStr;
+              if (t.date < start && t.status === 'pending' && (!t.loggedMinutes || t.loggedMinutes === 0)) {
+                return false;
+              }
+              // Rule 2: No auto-routine lists beyond tomorrow (tomorrow is next day only)
+              if (t.date > tomorrowStr && t.status === 'pending' && (!t.loggedMinutes || t.loggedMinutes === 0)) {
+                return false;
+              }
+            }
+            return true;
+          });
+        }
+      }
     } catch {
       // fallback
     }
@@ -157,7 +179,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [timeLogs, setTimeLogs] = useState<TimeLog[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.LOGS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed: TimeLog[] = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          // Filter out obsolete dummy generated historical logs from before user joined
+          return parsed.filter((l) => !l.id.startsWith('log_hist_'));
+        }
+      }
     } catch {
       // fallback
     }
